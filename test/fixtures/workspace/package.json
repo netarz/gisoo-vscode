@@ -1,0 +1,6 @@
+{
+  "name": "gisoo-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fixture workspace for the Gisoo integration tests"
+}

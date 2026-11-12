@@ -1,0 +1,30 @@
+# Sources and build inputs (the vsix ships dist/** and media/** only)
+.vscode/**
+.vscode-test/**
+.github/**
+.work/**
+src/**
+webview/**
+test/**
+docs/**
+node_modules/**
+out/**
+
+# Build and tooling files
+esbuild.mjs
+package-lock.json
+.eslintcache
+tsconfig.json
+**/tsconfig.json
+.eslintrc*
+eslint.config.*
+.gitignore
+.gitattributes
+.editorconfig
+.npmrc
+
+# Maps, archives and OS files
+**/*.map
+*.vsix
+**/.DS_Store
+**/Thumbs.db

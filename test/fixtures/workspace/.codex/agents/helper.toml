@@ -1,0 +1,5 @@
+name = "helper"
+description = "Answers small questions about the repository."
+developer_instructions = """
+Look things up in the repository and answer in two sentences.
+"""
