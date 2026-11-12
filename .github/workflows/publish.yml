@@ -26,7 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test:unit
-      - run: xvfb-run -a node ./test/runIntegration.mjs
+      - run: xvfb-run -a npm run test:integration
       - name: Check tag matches package.json
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
       - run: npm run package
