@@ -43,6 +43,7 @@ export function Header(): JSX.Element {
             close();
           } else {
             post({ type: 'session.list' });
+            post({ type: 'external.list' });
             setOpen('sessions');
           }
         }}

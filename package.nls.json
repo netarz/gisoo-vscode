@@ -32,6 +32,7 @@
   "config.permissionMode.plan": "Read-only: Gisoo writes a plan and stops.",
   "config.permissionMode.bypass": "Edits and commands run without asking; only irreversible commands still ask. Use only in a project you can restore.",
   "config.maxCostPerTask": "Stop a run when its estimated cost (in Gisoo coins) reaches this amount. 0 means no limit.",
+  "config.importExternalChats": "Show this folder's chats from other AI coding tools (Claude Code, Codex) in the chat history, so you can continue them in Gisoo. They are read only on this computer and copied into Gisoo only when you open one.",
   "config.showCost": "Show the estimated cost of each turn and the balance in the status bar.",
   "config.language": "Language of the Gisoo chat interface.",
   "config.language.auto": "Follow the VS Code display language.",

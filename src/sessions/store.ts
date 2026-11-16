@@ -69,9 +69,15 @@ export class SessionStore {
       if (!name.endsWith('.json')) continue;
       const data = await this.load(name.slice(0, -5));
       if (!data || !data.turns.length) continue;
-      items.push({ id: data.id, title: data.title || untitled(data), updatedAt: data.updatedAt, turnCount: data.turns.length });
+      items.push({ id: data.id, title: data.title || untitled(data), updatedAt: data.updatedAt, turnCount: data.turns.length, origin: typeof data.origin === 'string' ? data.origin : undefined });
     }
     return items.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
+  }
+
+  /** The newest session imported from `origin` (`source:id`), if any. */
+  async findByOrigin(origin: string): Promise<string | undefined> {
+    const items = await this.list(Number.MAX_SAFE_INTEGER);
+    return items.find((item) => item.origin === origin)?.id;
   }
 
   /** Most recently updated session id, if any. */

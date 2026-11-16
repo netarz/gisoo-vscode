@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
-import type { SessionSummary } from '../../src/shared/protocol';
+import type { ExternalSessionSummary, ExternalSource, SessionSummary } from '../../src/shared/protocol';
 import { t } from '../strings';
 import { post } from '../vscode';
 import { useAppState } from '../store';
@@ -22,8 +22,18 @@ function relativeTime(ts: number): string {
   return t('sessions.daysAgo', { n: Math.round(hours / 24) });
 }
 
+const EXTERNAL_SOURCES: Array<{ source: ExternalSource; name: string; icon: string }> = [
+  { source: 'claude-code', name: 'Claude Code', icon: 'sparkle' },
+  { source: 'codex', name: 'Codex', icon: 'terminal' },
+];
+
 export function SessionsOverlay({ onClose }: { onClose: () => void }): JSX.Element {
-  const { sessions, session } = useAppState();
+  const { sessions, session, external, externalLoading, externalEnabled } = useAppState();
+  const groups = externalEnabled
+    ? EXTERNAL_SOURCES.map((def) => ({ ...def, items: external.filter((item) => item.source === def.source) })).filter((group) => group.items.length > 0)
+    : [];
+  const externalFlat: ExternalSessionSummary[] = groups.flatMap((group) => group.items);
+  const total = sessions.length + externalFlat.length;
   const [index, setIndex] = useState(Math.max(0, sessions.findIndex((item) => item.id === session.id)));
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -33,15 +43,29 @@ export function SessionsOverlay({ onClose }: { onClose: () => void }): JSX.Eleme
     }
     onClose();
   };
-  const onKey = listKeyHandler(sessions.length, index, setIndex, (i) => openSession(sessions[i]), onClose);
+  const importExternal = (item: ExternalSessionSummary) => {
+    post({ type: 'external.import', source: item.source, id: item.id });
+    onClose();
+  };
+  const pick = (i: number) => {
+    if (i < sessions.length) {
+      openSession(sessions[i]);
+    } else if (externalFlat[i - sessions.length]) {
+      importExternal(externalFlat[i - sessions.length]);
+    }
+  };
+  const onKey = listKeyHandler(total, index, setIndex, pick, onClose);
+  const activeId = index < sessions.length
+    ? (sessions[index] ? `session-${sessions[index].id}` : undefined)
+    : (externalFlat[index - sessions.length] ? `external-${externalFlat[index - sessions.length].source}-${externalFlat[index - sessions.length].id}` : undefined);
 
   return (
     <Overlay title={t('sessions.title')} onClose={onClose} class="sessions-panel" initialFocus={false}>
       <div class="overlay-actions">
         <Button kind="primary" icon="add" onClick={() => { post({ type: 'session.new' }); onClose(); }}>{t('sessions.new')}</Button>
       </div>
-      <div class="list" role="listbox" tabIndex={0} onKeyDown={onKey} aria-label={t('sessions.title')} aria-activedescendant={sessions[index] ? `session-${sessions[index].id}` : undefined}>
-        {sessions.length === 0 ? <div class="list-empty">{t('sessions.empty')}</div> : null}
+      <div class="list" role="listbox" tabIndex={0} onKeyDown={onKey} aria-label={t('sessions.title')} aria-activedescendant={activeId}>
+        {sessions.length === 0 && externalFlat.length === 0 && !externalLoading ? <div class="list-empty">{t('sessions.empty')}</div> : null}
         {sessions.map((item, i) => (
           <div
             key={item.id}
@@ -73,6 +97,39 @@ export function SessionsOverlay({ onClose }: { onClose: () => void }): JSX.Eleme
             )}
           </div>
         ))}
+        {externalEnabled && externalLoading && externalFlat.length === 0 ? <div class="list-empty">{t('sessions.external.loading')}</div> : null}
+        {groups.map((group) => {
+          const start = sessions.length + externalFlat.findIndex((item) => item.source === group.source);
+          return (
+            <div key={group.source} class="list-group" role="group" aria-label={t('sessions.external.group', { name: group.name })}>
+              <div class="list-group-label" title={t('sessions.external.hint')}>
+                <Icon name={group.icon} /> <span>{t('sessions.external.group', { name: group.name })}</span>
+              </div>
+              {group.items.map((item, j) => {
+                const i = start + j;
+                return (
+                  <div
+                    key={item.id}
+                    id={`external-${item.source}-${item.id}`}
+                    role="option"
+                    aria-selected={i === index}
+                    title={t('sessions.external.hint')}
+                    class={`list-row session-row${i === index ? ' is-active' : ''}`}
+                    onMouseEnter={() => setIndex(i)}
+                    onClick={() => importExternal(item)}
+                  >
+                    <Icon name="comment" />
+                    <div class="list-main">
+                      <div class="list-title" dir="auto">{item.title || t('header.title.untitled')}</div>
+                      <div class="list-sub">{relativeTime(item.updatedAt)}{item.importedId ? ` · ${t('sessions.external.imported')}` : ''}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        {externalEnabled && externalLoading && externalFlat.length > 0 ? <div class="list-empty">{t('sessions.external.loading')}</div> : null}
       </div>
     </Overlay>
   );

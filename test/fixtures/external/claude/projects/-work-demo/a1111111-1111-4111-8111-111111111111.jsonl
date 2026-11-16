@@ -1,0 +1,8 @@
+{"type":"ai-title","aiTitle":"Fix the login bug"}
+{"type":"user","cwd":"/work/demo","timestamp":"2026-11-01T10:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"<system-reminder>Remember the house rules.</system-reminder>"},{"type":"text","text":"Please fix the login bug"}]}}
+{"type":"assistant","cwd":"/work/demo","timestamp":"2026-11-01T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"secret thoughts"},{"type":"text","text":"Let me look at the auth file."},{"type":"tool_use","name":"Read","input":{"file_path":"src/auth.ts"}}]}}
+{"type":"user","cwd":"/work/demo","timestamp":"2026-11-01T10:00:06.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"export function login() {}"}]}}
+{"type":"user","cwd":"/work/demo","isSidechain":true,"message":{"role":"user","content":"sidechain prompt that must be ignored"}}
+{"type":"user","cwd":"/work/demo","isMeta":true,"message":{"role":"user","content":"meta text that must be ignored"}}
+{ this line is not json
+{"type":"assistant","cwd":"/work/demo","timestamp":"2026-11-01T10:00:30.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Fixed: the token was compared with the wrong key."}]}}

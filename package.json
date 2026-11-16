@@ -481,6 +481,13 @@
           "description": "%config.maxCostPerTask%",
           "order": 5
         },
+        "gisoo.importExternalChats": {
+          "scope": "application",
+          "type": "boolean",
+          "default": true,
+          "description": "%config.importExternalChats%",
+          "order": 6
+        },
         "gisoo.showCost": {
           "type": "boolean",
           "default": true,

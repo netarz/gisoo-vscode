@@ -3,6 +3,13 @@
 All notable changes to Gisoo for VS Code are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
 
+## [Unreleased]
+
+### Added
+- Continue Claude Code and Codex chats of the same project in Gisoo: they are listed in the chat
+  history (setting `gisoo.importExternalChats`) and a copy opens as a new Gisoo chat; the original
+  chat is never changed.
+
 ## [1.0.2] - 2026-11-16
 
 ### Added

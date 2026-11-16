@@ -1,0 +1,9 @@
+{"type":"session_meta","timestamp":"2026-11-03T08:00:00.000Z","payload":{"id":"0191aaaa-0000-7000-8000-000000000001","cwd":"/work/demo","source":"cli"}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions for /work/demo\n\n<INSTRUCTIONS>Always be brief.</INSTRUCTIONS>"}]}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\n  <cwd>/work/demo</cwd>\n</environment_context>"}]}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Rename the config loader"}]}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:03.000Z","payload":{"type":"reasoning","summary":[]}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"I will rename it now."}]}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:04.000Z","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":[\"git\",\"mv\",\"a.ts\",\"b.ts\"]}"}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:05.000Z","payload":{"type":"function_call_output","output":"{\"output\":\"renamed\",\"metadata\":{}}"}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Renamed to b.ts."}]}}

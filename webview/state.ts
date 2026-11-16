@@ -3,6 +3,7 @@ import type {
   AgentInfo,
   AssistantPart,
   AssistantTurnView,
+  ExternalSessionSummary,
   HostToWebview,
   InitState,
   ModelInfo,
@@ -30,6 +31,10 @@ export interface AppState {
   models: ModelInfo[];
   session: SessionView;
   sessions: SessionSummary[];
+  /** Chats from other AI tools (Claude Code, Codex) for this folder. */
+  external: ExternalSessionSummary[];
+  externalLoading: boolean;
+  externalEnabled: boolean;
   slashCommands: SlashCommandInfo[];
   showCost: boolean;
   version: string;
@@ -68,6 +73,9 @@ export const initialState: AppState = {
   models: [],
   session: emptySession,
   sessions: [],
+  external: [],
+  externalLoading: false,
+  externalEnabled: false,
   slashCommands: [],
   showCost: true,
   version: '',
@@ -152,6 +160,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, session: action.session };
     case 'sessions':
       return { ...state, sessions: action.items };
+    case 'externalSessions':
+      return { ...state, external: action.items, externalLoading: action.loading, externalEnabled: action.enabled };
     case 'account':
       return { ...state, account: action.account };
     case 'models':

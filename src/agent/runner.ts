@@ -26,6 +26,7 @@ import { expandCommand, findCommand } from '../context/commands';
 import type { ContextProvider } from '../context/provider';
 import { Checkpoints } from '../edits/checkpoints';
 import type { SessionStore } from '../sessions/store';
+import { ExternalChats, originKey, transcriptToSession, type ExternalSession } from '../sessions/external';
 import {
   Links,
   NoticeCodes,
@@ -35,6 +36,8 @@ import {
   type Attachment,
   type HostToWebview,
   type MessageDelivery,
+  type ExternalSessionSummary,
+  type ExternalSource,
   type ModelInfo,
   type PermissionMode,
   type QueuedMessage,
@@ -120,6 +123,14 @@ function transcriptEvents(): vscode.EventEmitter<vscode.Uri> {
     sharedTranscripts = { emitter, registration };
   }
   return sharedTranscripts.emitter;
+}
+
+/** One reader of other tools' chats for the window, so its caches are shared by every chat. */
+let sharedExternal: ExternalChats | undefined;
+
+function externalChats(): ExternalChats {
+  sharedExternal ??= new ExternalChats({ home: os.homedir() });
+  return sharedExternal;
 }
 
 function releaseShared(controller: SessionController): void {
@@ -422,6 +433,12 @@ export class SessionController implements vscode.Disposable {
         return true;
       case 'session.list':
         await this.postSessions();
+        return true;
+      case 'external.list':
+        await this.postExternal();
+        return true;
+      case 'external.import':
+        await this.importExternal(msg.source, msg.id);
         return true;
       case 'model.set':
         await this.setModel(msg.id);
@@ -1710,6 +1727,69 @@ export class SessionController implements vscode.Disposable {
 
   private async postSessions(): Promise<void> {
     this.post({ type: 'sessions', items: await this.store.list() });
+  }
+
+  private externalEnabled(): boolean {
+    return userSetting<boolean>('importExternalChats') !== false;
+  }
+
+  /** Lists chats from other AI tools for this folder. Read lazily, when the history panel opens. */
+  private async postExternal(): Promise<void> {
+    const roots = workspaceRoots();
+    if (!this.externalEnabled() || !roots.length) {
+      this.post({ type: 'externalSessions', items: [], loading: false, enabled: this.externalEnabled() });
+      return;
+    }
+    this.post({ type: 'externalSessions', items: [], loading: true, enabled: true });
+    let found: ExternalSession[];
+    try {
+      found = await externalChats().list(roots);
+    } catch {
+      found = [];
+    }
+    const imported = new Map<string, string>();
+    for (const item of await this.store.list(Number.MAX_SAFE_INTEGER)) {
+      if (item.origin && !imported.has(item.origin)) imported.set(item.origin, item.id);
+    }
+    const items: ExternalSessionSummary[] = found.map((item) => ({
+      source: item.source,
+      id: item.id,
+      title: item.title,
+      updatedAt: item.updatedAt,
+      messageCount: item.messageCount,
+      importedId: imported.get(originKey(item.source, item.id)),
+    }));
+    this.post({ type: 'externalSessions', items, loading: false, enabled: true });
+  }
+
+  /** Copies a chat from another tool into a new Gisoo chat (or reopens the earlier copy) and opens it. */
+  private async importExternal(source: ExternalSource, id: string): Promise<void> {
+    if (!this.externalEnabled()) return;
+    const existing = await this.store.findByOrigin(originKey(source, id));
+    if (existing) {
+      await this.openSession(existing);
+      return;
+    }
+    let transcript;
+    try {
+      transcript = await externalChats().read(source, id);
+    } catch {
+      transcript = undefined;
+    }
+    if (!transcript || !transcript.turns.length) {
+      this.toast('warning', this.hostT('host.external.unreadable'));
+      return;
+    }
+    const label = source === 'codex' ? 'Codex' : 'Claude Code';
+    const notice = transcript.omitted
+      ? this.hostT('host.external.importedPartly', label, transcript.omitted)
+      : this.hostT('host.external.imported', label);
+    const data = transcriptToSession(transcript, this.session.model, this.session.mode, notice);
+    await this.stopAndWait();
+    await this.persist(this.session);
+    await this.persist(data);
+    this.switchTo(data);
+    await this.postSessions();
   }
 
   private async setModel(id: string): Promise<void> {
