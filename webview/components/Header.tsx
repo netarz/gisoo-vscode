@@ -7,7 +7,10 @@ import { Icon, IconButton } from './common';
 import { SessionsOverlay } from './SessionsOverlay';
 import { ModelPicker } from './ModelPicker';
 import { AccountPanel } from './AccountPanel';
+import { GisooCoin } from './GisooMark';
+import { formatCoinAmount, formatCoinText } from '../format';
 import { AgentsOverlay, isActiveAgent } from './Agents';
+import { BrandIcon, brandOf } from '../brands';
 
 type Open = 'none' | 'sessions' | 'models' | 'account' | 'agents';
 
@@ -58,12 +61,15 @@ export function Header(): JSX.Element {
           aria-expanded={open === 'models'}
           onClick={() => setOpen(open === 'models' ? 'none' : 'models')}
         >
+          {session.model && brandOf(session.model) ? <BrandIcon brand={brandOf(session.model)} size={14} /> : null}
           <span class="header-model-text">{modelLabel}</span>
           <Icon name="chevron-down" class="header-chevron" />
         </button>
       ) : null}
 
       <IconButton icon="add" label={t('header.newChat')} onClick={() => post({ type: 'session.new' })} />
+      <IconButton icon="multiple-windows" label={t('header.newTab')} onClick={() => post({ type: 'tab.open' })} />
+      <IconButton icon="layout" label={t('header.location')} onClick={() => post({ type: 'location.choose' })} />
 
       {account.signedIn ? (
         <button
@@ -85,12 +91,12 @@ export function Header(): JSX.Element {
           type="button"
           class={`balance-pill${account.error ? ' has-error' : ''}`}
           title={account.error ? t('account.error', { error: account.error }) : t('header.balance')}
-          aria-label={`${t('header.balance')}: ${account.balanceDisplay ?? '–'}`}
+          aria-label={`${t('header.balance')}: ${formatCoinText(account.balanceCoins)}`}
           aria-expanded={open === 'account'}
           onClick={() => setOpen(open === 'account' ? 'none' : 'account')}
         >
-          <Icon name={account.error ? 'warning' : 'account'} />
-          <span>{account.balanceDisplay ?? '–'}</span>
+          {account.error ? <Icon name="warning" /> : <GisooCoin size={14} />}
+          <span>{formatCoinAmount(account.balanceCoins)}</span>
         </button>
       ) : (
         <button type="button" class="balance-pill" onClick={() => post({ type: 'auth.signIn' })} title={t('header.signIn')}>

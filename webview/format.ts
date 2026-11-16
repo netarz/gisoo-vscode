@@ -1,3 +1,5 @@
+import { formatCoinNumber, formatCoins, formatCoinsCompact, formatUsdAsCoins, localDigits, usdToCoins, type CoinLanguage } from '../src/shared/coins';
+
 /** Small, locale-neutral formatters. Digits stay Latin so numbers read the same in both UIs. */
 
 export function formatTokens(n: number | undefined): string {
@@ -30,33 +32,38 @@ export function formatContext(n: number | undefined): string {
   return String(n);
 }
 
-/** USD with a sensible number of decimals: $0.0123, $0.42, $12.50. */
-export function formatUsd(usd: number | undefined): string {
-  if (usd === undefined || !Number.isFinite(usd)) {
-    return '–';
-  }
-  const abs = Math.abs(usd);
-  let digits = 2;
-  if (abs > 0 && abs < 0.01) {
-    digits = 4;
-  } else if (abs < 1) {
-    digits = 3;
-  }
-  return `$${usd.toFixed(digits)}`;
+/*
+ * Money is shown only as Gisoo coins. Costs are tracked in USD inside the extension; the store keeps
+ * the coin rate (from /me) and the UI language here so every formatter can convert without props.
+ */
+let coinRate: number | undefined;
+let coinLang: CoinLanguage = 'en';
+
+export function setCoinContext(rate: number | undefined, lang: CoinLanguage): void {
+  coinRate = rate;
+  coinLang = lang;
 }
 
-/** Price per million tokens: 3 -> "$3", 0.15 -> "$0.15", 0.0375 -> "$0.04". */
+/** A USD cost as Gisoo coins: «۱۲ سکه» / "12 coins"; a dash while the rate is unknown. */
+export function formatCost(usd: number | undefined): string {
+  return formatUsdAsCoins(usd, coinRate, coinLang);
+}
+
+/** Coins as a bare number for places that draw the coin icon beside it. */
+export function formatCoinAmount(coins: number | undefined): string {
+  return coins === undefined || !Number.isFinite(coins) ? '–' : formatCoinNumber(coins, coinLang);
+}
+
+/** Coins with the word: «۱۲ سکه» / "12 coins". */
+export function formatCoinText(coins: number | undefined): string {
+  return formatCoins(coins, coinLang);
+}
+
+/** Price per million tokens in coins, compact: "330K" / «۳۳۰ هزار». */
 export function formatPerMillion(usd: number | undefined): string {
-  if (usd === undefined || !Number.isFinite(usd)) {
-    return '–';
-  }
-  if (usd === 0) {
-    return '$0';
-  }
-  if (usd >= 1) {
-    return `$${Number.isInteger(usd) ? usd : usd.toFixed(2).replace(/0$/, '')}`;
-  }
-  return `$${usd.toFixed(usd < 0.1 ? 3 : 2).replace(/0+$/, '').replace(/\.$/, '')}`;
+  if (usd === undefined || !Number.isFinite(usd)) return '–';
+  if (usd === 0) return localDigits('0', coinLang);
+  return formatCoinsCompact(usdToCoins(usd, coinRate), coinLang);
 }
 
 export function formatDuration(ms: number | undefined): string {

@@ -3,6 +3,25 @@
 All notable changes to Gisoo for VS Code are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses semantic versioning.
 
+## [1.0.2] - 2026-11-16
+
+### Added
+- The chat can sit on the right (default), on the left or at the bottom: setting `gisoo.chatLocation`
+  and the "Move chat" command.
+- Chats in editor tabs: "New chat in a tab" opens a full chat with its own conversation, so several
+  tasks can run side by side; tabs survive a window reload.
+- The model picker groups models by company, with each company's mark, and a row of company chips
+  to show only one company's models. The current model's mark is shown in the header.
+
+### Changed
+- Money is shown only in Gisoo coins, everywhere: the header, the account panel, costs of turns and
+  agents, the status bar and the sign-in message. `gisoo.maxCostPerTask` is now in coins.
+- The status bar shows only the Gisoo coin and the balance.
+- The Gisoo coin is the Gisoo mark inside a ring.
+
+### Fixed
+- "n.toFixed is not a function" after sign-in when the server sent amounts as text.
+
 ## [1.0.1] - 2026-11-16
 
 ### Fixed

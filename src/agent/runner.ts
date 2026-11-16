@@ -15,7 +15,8 @@ import { graphPromptSection } from '../graph';
 import { previewManager } from '../preview/manager';
 import { WEB_WORK_PROMPT } from '../preview/tools';
 import { GisooError, type GisooClient } from '../api/client';
-import { addUsage, estimateCostUsd, formatUsd, usageFromWire } from '../api/cost';
+import { addUsage, estimateCostUsd, usageFromWire } from '../api/cost';
+import { coinsToUsd, formatCoins, formatUsdAsCoins } from '../shared/coins';
 import { catalogue, DEFAULT_MODEL, fallbackModel } from '../api/models';
 import type { ChatMessage, ChatRequest, ContentPart, ToolCall } from '../api/types';
 import type { AuthService } from '../auth/service';
@@ -69,6 +70,11 @@ export interface SessionControllerDeps {
   auth: AuthService;
   /** Instruction files, memory, custom commands and skills (SPEC-phase2 §1–3, §7). Optional for tests. */
   workspaceContext?: ContextProvider;
+  /**
+   * The conversation shown first. Omitted: the latest saved one (the side panel). `null`: a new chat
+   * (a new editor tab). A session id: that conversation (a tab restored after a reload).
+   */
+  initialSession?: string | null;
 }
 
 const INPUT_DISPLAY_MAX = 4_000;
@@ -87,6 +93,43 @@ const AGENT_FILE_NAME = /^[a-z0-9][a-z0-9-]{1,39}$/;
 
 function agentDocUri(id: string): vscode.Uri {
   return vscode.Uri.from({ scheme: AGENT_DOC_SCHEME, path: `/${id}.md` });
+}
+
+/*
+ * Several chats run at once (the side panel and every editor tab), each with its own controller.
+ * The `task` tool definition and the `gisoo-agent:` documents are registered once for all of them:
+ * each controller runs its own `task` (see prepareCall) and the transcript provider asks whichever
+ * controller ran the agent.
+ */
+const liveControllers = new Set<SessionController>();
+let sharedTask: (() => void) | undefined;
+let sharedTranscripts: { emitter: vscode.EventEmitter<vscode.Uri>; registration: vscode.Disposable } | undefined;
+
+function transcriptEvents(): vscode.EventEmitter<vscode.Uri> {
+  if (!sharedTranscripts) {
+    const emitter = new vscode.EventEmitter<vscode.Uri>();
+    const registration = vscode.workspace.registerTextDocumentContentProvider(AGENT_DOC_SCHEME, {
+      onDidChange: emitter.event,
+      provideTextDocumentContent: (uri) => {
+        const id = uri.path.replace(/^\/+/, '').replace(/\.md$/, '');
+        const all = [...liveControllers];
+        const owner = all.find((c) => c.hasAgent(id)) ?? all[0];
+        return owner ? owner.transcriptFor(id) : '';
+      },
+    });
+    sharedTranscripts = { emitter, registration };
+  }
+  return sharedTranscripts.emitter;
+}
+
+function releaseShared(controller: SessionController): void {
+  liveControllers.delete(controller);
+  if (liveControllers.size) return;
+  sharedTask?.();
+  sharedTask = undefined;
+  sharedTranscripts?.registration.dispose();
+  sharedTranscripts?.emitter.dispose();
+  sharedTranscripts = undefined;
 }
 
 function agentTemplate(name: string): string {
@@ -284,7 +327,9 @@ export class SessionController implements vscode.Disposable {
   private readonly agents = new Map<string, AgentRun>();
   private agentHistory: AgentInfo[] = [];
   private readonly agentRecords = new Map<string, AgentRecord>();
-  private readonly transcriptChanged = new vscode.EventEmitter<vscode.Uri>();
+  private readonly transcriptChanged = transcriptEvents();
+  private readonly ownTask: RegisteredTool;
+  private readonly initialSession: string | null | undefined;
   private readonly semaphore: Semaphore;
   private readonly disposers: Array<() => void> = [];
 
@@ -297,6 +342,7 @@ export class SessionController implements vscode.Disposable {
     this.context = deps.context;
     this.auth = deps.auth;
     this.workspaceContext = deps.workspaceContext;
+    this.initialSession = deps.initialSession;
 
     const settings = this.getSettings();
     this.session = createSession(settings.model.trim() || DEFAULT_MODEL, settings.permissionMode);
@@ -304,12 +350,9 @@ export class SessionController implements vscode.Disposable {
     this.steer = new MessageQueue(() => this.postQueue());
     this.later = new MessageQueue(() => this.postQueue());
     this.semaphore = new Semaphore(() => this.getSettings().maxParallelAgents);
-    this.disposers.push(this.tools.registerTool(this.taskTool(), { readOnly: true, needsApproval: false }));
-    const transcripts = vscode.workspace.registerTextDocumentContentProvider(AGENT_DOC_SCHEME, {
-      onDidChange: this.transcriptChanged.event,
-      provideTextDocumentContent: (uri) => this.agentTranscript(uri.path.replace(/^\/+/, '').replace(/\.md$/, '')),
-    });
-    this.disposers.push(() => transcripts.dispose(), () => this.transcriptChanged.dispose());
+    this.ownTask = { tool: this.taskTool(), readOnly: true, needsApproval: false };
+    liveControllers.add(this);
+    if (!this.tools.toolByName('task')) sharedTask = this.tools.registerTool(this.ownTask.tool, { readOnly: true, needsApproval: false });
     if (this.workspaceContext) {
       const sub = this.workspaceContext.onDidReload(() => this.post({ type: 'slashCommands', items: this.slashCommands() }));
       this.disposers.push(() => sub.dispose());
@@ -322,6 +365,27 @@ export class SessionController implements vscode.Disposable {
     for (const timer of this.progressTimers.values()) clearTimeout(timer);
     this.progressTimers.clear();
     for (const d of this.disposers.splice(0)) d();
+    releaseShared(this);
+  }
+
+  /** True while this chat is working on a task. */
+  get busy(): boolean {
+    return this.running;
+  }
+
+  /** Id of the conversation on screen. */
+  get sessionId(): string {
+    return this.session.id;
+  }
+
+  /** True when this chat ran (or runs) the sub-agent with this id. */
+  hasAgent(id: string): boolean {
+    return this.findAgentInfo(id) !== undefined;
+  }
+
+  /** Markdown transcript of one of this chat's sub-agents (the `gisoo-agent:` document). */
+  transcriptFor(id: string): string {
+    return this.agentTranscript(id);
   }
 
   // -- Webview messages --------------------------------------------------------------------------
@@ -413,8 +477,8 @@ export class SessionController implements vscode.Disposable {
   private async onReady(): Promise<void> {
     if (!this.initialised) {
       this.initialised = true;
-      if (!this.session.turns.length && !this.running) {
-        const latest = await this.store.latestId();
+      if (!this.session.turns.length && !this.running && this.initialSession !== null) {
+        const latest = this.initialSession ?? (await this.store.latestId());
         const data = latest ? await this.store.load(latest) : undefined;
         if (data && !this.running && !this.session.turns.length) this.session = data;
       }
@@ -551,8 +615,9 @@ export class SessionController implements vscode.Disposable {
         this.canRetry = true;
         return finish('error');
       }
-      if (settings.maxCostPerTask > 0 && this.taskCostUsd >= settings.maxCostPerTask) {
-        this.notice(turn.view, 'warning', this.t('error.maxCost', formatUsd(settings.maxCostPerTask)), NoticeCodes.maxCost);
+      const capUsd = this.costCapUsd(settings.maxCostPerTask);
+      if (capUsd !== undefined && this.taskCostUsd >= capUsd) {
+        this.notice(turn.view, 'warning', this.t('error.maxCost', formatCoins(settings.maxCostPerTask, this.language)), NoticeCodes.maxCost);
         this.canRetry = true;
         return finish('error');
       }
@@ -809,7 +874,8 @@ export class SessionController implements vscode.Disposable {
 
   private prepareCall(call: ToolCall, index: number, scope: ExecScope): CallEntry {
     const name = call.function.name;
-    const registered = this.tools.toolByName(name);
+    // `task` is registered once for every chat; each chat runs its own sub-agents.
+    const registered = name === 'task' ? this.ownTask : this.tools.toolByName(name);
     let input: Record<string, unknown> = {};
     let failure: string | undefined;
     try {
@@ -1140,8 +1206,9 @@ export class SessionController implements vscode.Disposable {
       if (signal.aborted) throw new GisooError('Stopped', 'aborted');
       // The task's cost limit covers its sub-agents too; parallel agents share the same total.
       const limit = this.getSettings().maxCostPerTask;
-      if (limit > 0 && this.taskCostUsd >= limit) {
-        const note = `[The sub-agent stopped: the task reached its cost limit (gisoo.maxCostPerTask = ${formatUsd(limit)}).]`;
+      const capUsd = this.costCapUsd(limit);
+      if (capUsd !== undefined && this.taskCostUsd >= capUsd) {
+        const note = `[The sub-agent stopped: the task reached its cost limit (gisoo.maxCostPerTask = ${limit} Gisoo coins).]`;
         return lastText ? `${lastText}\n\n${note}` : note;
       }
       touch('thinking');
@@ -1252,7 +1319,7 @@ export class SessionController implements vscode.Disposable {
       `- model: ${info.model}`,
       `- status: ${this.hostT(`host.agents.status.${info.status}`)}`,
       `- started: ${new Date(info.startedAt).toISOString()}  elapsed: ${elapsed} s`,
-      `- tokens: ${info.tokens}  cost: ${formatUsd(info.costUsd) || '$0.00'}`,
+      `- tokens: ${info.tokens}  cost: ${this.coins(info.costUsd)}`,
     ];
     if (info.lastStep) lines.push(`- last step: ${info.lastStep}`);
     if (!record) {
@@ -1839,7 +1906,7 @@ export class SessionController implements vscode.Disposable {
         const info = this.modelInfo(this.session.model);
         const priced = info.inputPerMillion !== undefined && info.outputPerMillion !== undefined;
         const used = `${Math.round(this.contextUsed(this.session) * 100)}%`;
-        const text = priced || this.session.costUsd > 0 ? this.t('cost.session', formatUsd(this.session.costUsd) || '$0.00', used) : this.t('cost.unknown');
+        const text = priced || this.session.costUsd > 0 ? this.t('cost.session', this.coins(this.session.costUsd), used) : this.t('cost.unknown');
         this.localReply(text);
         return true;
       }
@@ -1939,6 +2006,17 @@ export class SessionController implements vscode.Disposable {
 
   private get language(): UiLanguage {
     return this.getSettings().language;
+  }
+
+  /** A USD cost as Gisoo coins in the UI language. */
+  private coins(usd: number | undefined): string {
+    return formatUsdAsCoins(usd ?? 0, this.auth.getAccount().coinRate, this.language);
+  }
+
+  /** gisoo.maxCostPerTask is in coins; costs are tracked in USD. Undefined = no cap (or rate unknown yet). */
+  private costCapUsd(limitCoins: number): number | undefined {
+    if (!(limitCoins > 0)) return undefined;
+    return coinsToUsd(limitCoins, this.auth.getAccount().coinRate);
   }
 
   private t(key: StringKey, ...args: Array<string | number>): string {

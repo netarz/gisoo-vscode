@@ -32,8 +32,10 @@ export interface ModelInfo {
 
 export interface AccountInfo {
   signedIn: boolean;
-  /** e.g. "$4.21" exactly as /me returns it in balance.usd_display. Never a Toman amount. */
-  balanceDisplay?: string;
+  /** Balance in Gisoo coins. Gisoo never shows dollars or Toman: every amount is coins. */
+  balanceCoins?: number;
+  /** Coins per USD, from /me; costs are tracked in USD and converted with it. */
+  coinRate?: number;
   balanceUsd?: number;
   status?: string;
   projectName?: string;
@@ -41,6 +43,8 @@ export interface AccountInfo {
   keyPrefix?: string;
   spendLimitUsd?: number | null;
   spentUsd?: number;
+  spendLimitCoins?: number | null;
+  spentCoins?: number;
   baseUrl: string;
   region: Region;
   /** Set when the last /me call failed (offline, 401...). */
@@ -268,6 +272,10 @@ export type WebviewToHost =
   | { type: 'session.open'; id: string }
   | { type: 'session.delete'; id: string }
   | { type: 'session.list' }
+  /** Open a new chat in an editor tab. */
+  | { type: 'tab.open' }
+  /** Choose where the side-panel chat lives. */
+  | { type: 'location.choose' }
   | { type: 'model.set'; id: string }
   | { type: 'models.refresh' }
   | { type: 'mode.set'; mode: PermissionMode }

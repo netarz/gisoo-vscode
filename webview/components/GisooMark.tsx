@@ -23,3 +23,13 @@ export function GisooLoader({ size = 16, class: cls }: { size?: number; class?: 
     </svg>
   );
 }
+
+/** The Gisoo coin: the mark inside a ring. Gisoo shows money only in these coins. */
+export function GisooCoin({ size = 14, class: cls }: { size?: number; class?: string }): JSX.Element {
+  return (
+    <svg class={`gisoo-coin${cls ? ` ${cls}` : ''}`} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <circle cx="32" cy="32" r="29.5" fill="none" stroke="currentColor" stroke-width="4" />
+      <path fill="currentColor" transform="translate(32 32) scale(0.7) translate(-32 -32)" d={PATH} />
+    </svg>
+  );
+}

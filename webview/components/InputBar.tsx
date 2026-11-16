@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Attachment, PermissionMode, SlashCommandInfo } from '../../src/shared/protocol';
-import { basename, formatPercent, formatUsd } from '../format';
+import { basename, formatPercent, formatCost } from '../format';
 import { t } from '../strings';
 import { getPersisted, persist, post } from '../vscode';
 import { dispatch, useAppState } from '../store';
@@ -368,7 +368,7 @@ export function InputBar({ starter }: { starter?: { text: string; seq: number } 
           <span class="input-meta-text">{formatPercent(session.contextUsed)}</span>
         </span>
         {showCost && session.costUsd > 0 ? (
-          <span class="input-meta" title={t('input.sessionCost', { cost: formatUsd(session.costUsd) })}>≈ {formatUsd(session.costUsd)}</span>
+          <span class="input-meta" title={t('input.sessionCost', { cost: formatCost(session.costUsd) })}>≈ {formatCost(session.costUsd)}</span>
         ) : null}
         {running ? (
           <>

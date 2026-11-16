@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { GisooClient, GisooError } from '../api/client';
 import type { MeResponse } from '../api/types';
 import type { AccountInfo } from '../shared/protocol';
+import { formatCoins, toNumber, usdToCoins } from '../shared/coins';
 import { baseUrlFromSettings, getSettings } from '../config';
 import { isAcceptableBaseUrl, isGisooServerBase } from '../security';
 import { hostStr, type HostStringKey } from '../ui/strings';
@@ -179,7 +180,7 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
     }
     try {
       const info = await this.exchange(pending, code);
-      void vscode.window.showInformationMessage(info.balanceDisplay ? this.tr('host.signedInWithBalance', info.balanceDisplay) : this.tr('host.signedIn'));
+      void vscode.window.showInformationMessage(info.balanceCoins !== undefined ? this.tr('host.signedInWithBalance', formatCoins(info.balanceCoins, getSettings().language)) : this.tr('host.signedIn'));
     } catch (error) {
       void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
     }
@@ -332,16 +333,23 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
   }
 
   private fromMe(me: MeResponse): AccountInfo {
+    const balanceUsd = toNumber(me.balance?.usd);
+    const coinRate = toNumber(me.balance?.coin_rate);
+    const limitUsd = me.key?.spend_limit_usd === null ? null : toNumber(me.key?.spend_limit_usd);
+    const spentUsd = toNumber(me.key?.spent_usd);
     return {
       signedIn: true,
-      balanceDisplay: me.balance?.usd_display,
-      balanceUsd: me.balance?.usd,
+      balanceCoins: toNumber(me.balance?.coins) ?? usdToCoins(balanceUsd, coinRate),
+      coinRate,
+      balanceUsd,
       status: me.status,
       projectName: me.project?.name,
       keyName: me.key?.name,
       keyPrefix: me.key?.prefix,
-      spendLimitUsd: me.key?.spend_limit_usd,
-      spentUsd: me.key?.spent_usd,
+      spendLimitUsd: limitUsd,
+      spentUsd,
+      spendLimitCoins: limitUsd === null ? null : usdToCoins(limitUsd, coinRate),
+      spentCoins: usdToCoins(spentUsd, coinRate),
       baseUrl: this.client.baseUrl,
       region: this.region,
     };

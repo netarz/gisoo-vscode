@@ -10,7 +10,7 @@ import {
   type SummaryTurnView,
   type UserTurnView,
 } from '../../src/shared/protocol';
-import { formatDuration, formatTokens, formatUsd } from '../format';
+import { formatDuration, formatTokens, formatCost } from '../format';
 import { t } from '../strings';
 import { post } from '../vscode';
 import { Button, Icon, IconButton } from './common';
@@ -141,7 +141,7 @@ function TurnFooter({ turn, showCost }: { turn: AssistantTurnView; showCost: boo
         </span>
       ) : null}
       {showCost && usage?.costUsd !== undefined ? (
-        <span class="turn-cost" title={t('turn.costTitle')}>{t('turn.cost', { cost: formatUsd(usage.costUsd) })}</span>
+        <span class="turn-cost" title={t('turn.costTitle')}>{t('turn.cost', { cost: formatCost(usage.costUsd) })}</span>
       ) : null}
       {turn.durationMs !== undefined ? <span class="turn-duration">{formatDuration(turn.durationMs)}</span> : null}
       {turn.stopped ? <span class="turn-stopped"><Icon name="debug-stop" />{t('turn.stopped')}</span> : null}

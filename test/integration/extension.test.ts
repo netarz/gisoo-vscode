@@ -72,8 +72,11 @@ describe('Gisoo extension in a real VS Code', () => {
     const pkg = ext().packageJSON as PackageJson;
     const ids = pkg.contributes.views.gisoo.map((v) => v.id);
     assert.deepEqual(ids, ['gisoo.chat', 'gisoo.agents']);
-    await vscode.commands.executeCommand('gisoo.chat.focus');
-    await vscode.commands.executeCommand('gisoo.agents.focus');
+    // The chat defaults to the right-hand secondary sidebar; focus whichever chat/agents views are shown.
+    const [major, minor] = vscode.version.split('.').map(Number);
+    const right = major > 1 || minor >= 106 ? 'Secondary' : '';
+    await vscode.commands.executeCommand(`gisoo.chat${right}.focus`);
+    await vscode.commands.executeCommand(`gisoo.agents${right}.focus`);
     const deadline = Date.now() + 15_000;
     while (Date.now() < deadline && !(exportsApi.views().chat && exportsApi.views().agents)) await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(exportsApi.views(), { chat: true, agents: true });

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
+import { setCoinContext } from './format';
 import type { HostToWebview } from '../src/shared/protocol';
 import { setStrings } from './strings';
+import { persist } from './vscode';
 import { initialState, reducer, type Action, type AppState } from './state';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +27,7 @@ export function dispatch(action: Action): void {
   const next = reducer(state, action);
   if (next !== state) {
     state = next;
+    setCoinContext(state.account.coinRate, state.language);
     for (const listener of listeners) {
       listener(state);
     }
@@ -95,6 +98,9 @@ export function handleHostMessage(message: HostToWebview): void {
     setStrings(message.state.strings);
     document.documentElement.dir = message.state.language === 'fa' ? 'rtl' : 'ltr';
     document.documentElement.lang = message.state.language;
+    persist({ openSessionId: message.state.session.id });
+  } else if (message.type === 'session') {
+    persist({ openSessionId: message.session.id });
   }
   dispatch(message);
 }

@@ -4,6 +4,8 @@ export interface PersistedState {
   draft?: string;
   scrollTop?: number;
   sessionId?: string;
+  /** Conversation on screen; an editor tab reopens it after a window reload. */
+  openSessionId?: string;
 }
 
 interface VsCodeApi {

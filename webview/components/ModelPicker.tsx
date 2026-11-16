@@ -5,6 +5,7 @@ import { formatContext, formatPerMillion } from '../format';
 import { t } from '../strings';
 import { post } from '../vscode';
 import { useAppState } from '../store';
+import { BrandIcon, brandOf, brandRank, type BrandDef } from '../brands';
 import { Icon, IconButton, Overlay, listKeyHandler, useScrollIntoView } from './common';
 
 function matches(model: ModelInfo, query: string): boolean {
@@ -31,10 +32,11 @@ function ModelRow({ model, active, current, onPick, onHover }: {
       onClick={onPick}
       title={model.description ?? model.id}
     >
-      <Icon name={current ? 'check' : 'circle-outline'} class="model-check" />
+      <span class="model-brand"><BrandIcon brand={brandOf(model.id)} size={18} /></span>
       <div class="list-main">
         <div class="list-title">
           <span class="model-name">{model.name}</span>
+          {current ? <Icon name="check" class="model-check" /> : null}
           {model.isFree ? <span class="badge badge-free">{t('models.free')}</span> : null}
           {model.vision ? <span class="badge" title={t('models.vision')} aria-label={t('models.vision')}><Icon name="eye" /></span> : null}
           {model.reasoning ? <span class="badge" title={t('models.reasoning')} aria-label={t('models.reasoning')}><Icon name="lightbulb" /></span> : null}
@@ -58,13 +60,41 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
 
-  const { recommended, rest } = useMemo(() => {
-    const filtered = models.filter((model) => matches(model, query.trim()));
-    const recommended = filtered.filter((model) => model.recommended);
-    const rest = filtered.filter((model) => !model.recommended).sort((a, b) => a.name.localeCompare(b.name));
-    return { recommended, rest };
-  }, [models, query]);
-  const flat = [...recommended, ...rest];
+  const [brandKey, setBrandKey] = useState<string | null>(null);
+
+  // Brands present in the catalogue, with counts, in the fixed brand order; unknown ones are "other".
+  const brandChips = useMemo(() => {
+    const counts = new Map<string, { brand: BrandDef | undefined; count: number }>();
+    for (const model of models) {
+      const brand = brandOf(model.id);
+      const key = brand?.key ?? 'other';
+      const entry = counts.get(key) ?? { brand, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
+    }
+    return [...counts.entries()].sort((a, b) => brandRank(a[1].brand) - brandRank(b[1].brand)).map(([key, v]) => ({ key, ...v }));
+  }, [models]);
+
+  const { recommended, groups } = useMemo(() => {
+    const filtered = models.filter((model) => {
+      if (!matches(model, query.trim())) return false;
+      return brandKey === null || (brandOf(model.id)?.key ?? 'other') === brandKey;
+    });
+    const recommended = brandKey === null ? filtered.filter((model) => model.recommended) : [];
+    const byBrand = new Map<string, { brand: BrandDef | undefined; items: ModelInfo[] }>();
+    for (const model of filtered) {
+      if (brandKey === null && model.recommended) continue;
+      const brand = brandOf(model.id);
+      const key = brand?.key ?? 'other';
+      const group = byBrand.get(key) ?? { brand, items: [] };
+      group.items.push(model);
+      byBrand.set(key, group);
+    }
+    const groups = [...byBrand.values()].sort((a, b) => brandRank(a.brand) - brandRank(b.brand));
+    for (const group of groups) group.items.sort((a, b) => a.name.localeCompare(b.name));
+    return { recommended, groups };
+  }, [models, query, brandKey]);
+  const flat = [...recommended, ...groups.flatMap((group) => group.items)];
   const safeIndex = Math.min(index, Math.max(0, flat.length - 1));
 
   const pick = (model: ModelInfo | undefined) => {
@@ -79,7 +109,7 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
   const onKey = listKeyHandler(flat.length, safeIndex, setIndex, (i) => pick(flat[i]), onClose);
 
   let offset = 0;
-  const renderGroup = (label: string, items: ModelInfo[]) => {
+  const renderGroup = (label: string, items: ModelInfo[], brand?: BrandDef | null) => {
     if (!items.length) {
       return null;
     }
@@ -87,7 +117,11 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
     offset += items.length;
     return (
       <div class="list-group" role="group" aria-label={label}>
-        <div class="list-group-label">{label}</div>
+        <div class="list-group-label model-group-label">
+          {brand !== undefined ? <BrandIcon brand={brand ?? undefined} size={14} /> : null}
+          <span>{label}</span>
+          <span class="model-group-count">{items.length}</span>
+        </div>
         {items.map((model, i) => (
           <ModelRow
             key={model.id}
@@ -123,10 +157,30 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
         />
         <IconButton icon="refresh" label={t('models.refresh')} onClick={() => post({ type: 'models.refresh' })} />
       </div>
+      {brandChips.length > 1 ? (
+        <div class="brand-chips" role="toolbar" aria-label={t('models.title')}>
+          <button type="button" class={`brand-chip${brandKey === null ? ' is-on' : ''}`} onClick={() => { setBrandKey(null); setIndex(0); }}>
+            {t('models.allBrands')}
+          </button>
+          {brandChips.map((chip) => (
+            <button
+              type="button"
+              key={chip.key}
+              class={`brand-chip${brandKey === chip.key ? ' is-on' : ''}`}
+              title={`${chip.brand?.name ?? t('models.other')} (${chip.count})`}
+              aria-pressed={brandKey === chip.key}
+              onClick={() => { setBrandKey(brandKey === chip.key ? null : chip.key); setIndex(0); }}
+            >
+              <BrandIcon brand={chip.brand} size={14} />
+              <span>{chip.brand?.name ?? t('models.other')}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div class="list" id="model-list" role="listbox" aria-label={t('models.title')}>
         {flat.length === 0 ? <div class="list-empty">{t('models.empty')}</div> : null}
         {renderGroup(t('models.recommended'), recommended)}
-        {renderGroup(t('models.all'), rest)}
+        {groups.map((group) => renderGroup(group.brand?.name ?? t('models.other'), group.items, group.brand ?? null))}
       </div>
     </Overlay>
   );

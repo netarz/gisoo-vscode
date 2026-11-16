@@ -11,6 +11,7 @@ import { AgentTreeProvider, agentIdFromArg } from './agents/treeView';
 import { GisooClient } from './api/client';
 import { AuthService, SECRET_KEY } from './auth/service';
 import { baseUrlFromSettings, getSettings } from './config';
+import { formatCoinNumber, formatCoins } from './shared/coins';
 import { claudeMemoryStore, importClaudeMemory } from './context/claude';
 import { createMemoryTool } from './context/memory';
 import { ContextProvider } from './context/provider';
@@ -22,7 +23,9 @@ import { createSkillTool } from './skills/catalog';
 import { installSkillCommand } from './skills/installCommand';
 import * as tools from './tools';
 import { primaryRoot, workspaceRoots } from './tools/workspace';
-import { CHAT_VIEW_ID, ChatViewProvider, fileAttachment, selectionAttachment } from './ui/chatViewProvider';
+import { CHAT_TAB_VIEW_TYPE, ChatTabs } from './ui/chatTabs';
+import { ChatViewProvider, fileAttachment, selectionAttachment, type ChatHost } from './ui/chatViewProvider';
+import { AGENT_VIEWS, CHAT_VIEWS, chatLocation, chatViewId, hasSecondarySidebar, moveChat, type ChatLocation } from './ui/placement';
 import { hostStr, type HostStringKey } from './ui/strings';
 
 const t = (key: HostStringKey, ...args: Array<string | number>): string => hostStr(getSettings().language, key, ...args);
@@ -61,16 +64,28 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
   // The provider is created after the controller, so `post` closes over it.
   // eslint-disable-next-line prefer-const -- assigned after the controller that needs `post`
   let provider: ChatViewProvider | undefined;
+  // eslint-disable-next-line prefer-const -- assigned after the controller factory below
+  let tabs: ChatTabs | undefined;
+  // `gisoo.running` follows the chat commands act on: the active editor tab, else the side panel.
+  const syncRunning = (): void => {
+    const busy = tabs?.active ? (tabs.active.controller as SessionController).busy : controller.busy;
+    void vscode.commands.executeCommand('setContext', 'gisoo.running', busy);
+  };
   // The agents tree (SPEC-phase2 §8) is fed from the same AgentInfo messages the webview gets.
-  const agentTree = new AgentTreeProvider(() => getSettings().language);
+  const agentTree = new AgentTreeProvider(() => getSettings().language, () => auth.getAccount().coinRate);
   const post = (message: HostToWebview): boolean => {
-    if (message.type === 'running') void vscode.commands.executeCommand('setContext', 'gisoo.running', message.running);
+    if (message.type === 'running') queueMicrotask(syncRunning);
     if (message.type === 'agents') agentTree.setAll(message.items);
     else if (message.type === 'agentUpdate') agentTree.upsert(message.item);
     return provider?.post(message) ?? false;
   };
   // Instruction files, memory, custom commands and skills (SPEC-phase2 §1–3, §7).
-  const workspaceContext = new ContextProvider({ post, compatClaude: () => getSettings().compatClaude });
+  // Workspace news (instruction files, commands, skills) goes to every open chat.
+  const broadcast = (message: HostToWebview): boolean => {
+    tabs?.broadcast(message);
+    return post(message);
+  };
+  const workspaceContext = new ContextProvider({ post: broadcast, compatClaude: () => getSettings().compatClaude });
   const unregisterMemory = tools.registerTool(createMemoryTool({ stores: () => workspaceContext.stores(), onChanged: () => workspaceContext.markDirty() }), {
     readOnly: false,
     needsApproval: false,
@@ -80,8 +95,25 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
     needsApproval: false,
   });
   const controller = new SessionController({ client, tools, store, post, getSettings, context, auth, workspaceContext });
-  const view = new ChatViewProvider(context, auth, controller);
+  const view = new ChatViewProvider(context, auth, controller, chatViewId);
   provider = view;
+  tabs = new ChatTabs(context, auth, (tabPost, initialSession) =>
+    new SessionController({
+      client, tools, store, getSettings, context, auth, workspaceContext, initialSession,
+      post: (message) => {
+        if (message.type === 'running') queueMicrotask(syncRunning);
+        tabPost(message);
+      },
+    }),
+  );
+  const chatTabs = tabs;
+  // Commands (stop, new chat, attach) act on the chat last used: an editor tab or the side panel.
+  const current = (): { controller: { handle: SessionController['handle'] }; host: ChatHost } =>
+    chatTabs.active ?? { controller, host: view.host };
+  const agentViews = Object.values(AGENT_VIEWS).map((id) => vscode.window.createTreeView(id, { treeDataProvider: agentTree, showCollapseAll: false }));
+  const chatViews = Object.values(CHAT_VIEWS).map((id) =>
+    vscode.window.registerWebviewViewProvider(id, view, { webviewOptions: { retainContextWhenHidden: true } }),
+  );
   // Graphify code graph (SPEC-phase2 §9): detection, consented install, builds, graph tools.
   const graph = activateGraph(context);
   const agentCommand = (type: 'agent.open' | 'agent.stop' | 'agent.retry') => (arg?: unknown) => {
@@ -96,12 +128,16 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
     { dispose: unregisterSkill },
     controller,
     view,
+    chatTabs,
+    view.host.onDidInteract(() => chatTabs.forgetActive()),
+    chatTabs.onDidChangeActive(syncRunning),
+    vscode.window.registerWebviewPanelSerializer(CHAT_TAB_VIEW_TYPE, chatTabs),
     graph,
     previewManager(),
     agentTree,
-    vscode.window.createTreeView('gisoo.agents', { treeDataProvider: agentTree, showCollapseAll: false }),
+    ...agentViews,
     vscode.window.registerUriHandler(auth),
-    vscode.window.registerWebviewViewProvider(CHAT_VIEW_ID, view, { webviewOptions: { retainContextWhenHidden: true } }),
+    ...chatViews,
     createStatusItem(auth),
     auth.onDidChange((account) => void vscode.commands.executeCommand('setContext', 'gisoo.signedIn', account.signedIn)),
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -111,19 +147,25 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
       }
     }),
     ...registerCommands({
-      'gisoo.focus': () => view.reveal(),
+      'gisoo.focus': () => current().host.reveal(),
       'gisoo.newChat': async () => {
-        await view.reveal();
-        await controller.handle({ type: 'session.new' });
+        const target = current();
+        await target.host.reveal();
+        await target.controller.handle({ type: 'session.new' });
       },
-      'gisoo.stop': () => controller.handle({ type: 'stop' }),
+      'gisoo.openInTab': () => void chatTabs.open(),
+      'gisoo.moveChat': () => chooseLocation(chatTabs),
+      'gisoo.moveToRight': () => moveChat('right'),
+      'gisoo.moveToLeft': () => moveChat('left'),
+      'gisoo.moveToBottom': () => moveChat('bottom'),
+      'gisoo.stop': () => current().controller.handle({ type: 'stop' }),
       'gisoo.signIn': () => signInWithBrowser(auth),
       'gisoo.signInWithKey': () => signInWithKey(auth),
       'gisoo.enterCode': () => enterCode(auth),
       'gisoo.signOut': () => signOut(auth),
       'gisoo.openSettings': () => vscode.commands.executeCommand('workbench.action.openSettings', `@ext:${context.extension.id}`),
-      'gisoo.attachFile': () => view.attach(fileAttachment(), t('host.attach.noFile')),
-      'gisoo.attachSelection': () => view.attach(selectionAttachment(), t('host.attach.noSelection')),
+      'gisoo.attachFile': () => current().host.attach(fileAttachment(), t('host.attach.noFile')),
+      'gisoo.attachSelection': () => current().host.attach(selectionAttachment(), t('host.attach.noSelection')),
       'gisoo.showAccount': () => showAccount(auth, view),
       'gisoo.installSkill': async (source?: unknown) => {
         const installed = await installSkillCommand(typeof source === 'string' ? source : undefined);
@@ -142,6 +184,7 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
   );
 
   void vscode.commands.executeCommand('setContext', 'gisoo.running', false);
+  void vscode.commands.executeCommand('setContext', 'gisoo.noSecondarySidebar', !hasSecondarySidebar());
   void vscode.commands.executeCommand('setContext', 'gisoo.signedIn', false);
   void auth.refresh();
 
@@ -209,13 +252,13 @@ async function importClaudeMemoryCommand(workspaceContext: ContextProvider): Pro
 }
 
 function showSignedIn(info: AccountInfo): void {
-  void vscode.window.showInformationMessage(info.balanceDisplay ? t('host.signedInWithBalance', info.balanceDisplay) : t('host.signedIn'));
+  void vscode.window.showInformationMessage(info.balanceCoins !== undefined ? t('host.signedInWithBalance', coins(info.balanceCoins)) : t('host.signedIn'));
 }
 
 async function signInWithBrowser(auth: AuthService): Promise<void> {
   const pending = auth.signInWithBrowser();
   // The sign-in card in the panel has the code box; bring it into view.
-  void vscode.commands.executeCommand('gisoo.chat.focus').then(undefined, () => undefined);
+  void vscode.commands.executeCommand(`${chatViewId()}.focus`).then(undefined, () => undefined);
   void vscode.window.showInformationMessage(t('host.signIn.browserOpened'));
   try {
     showSignedIn(await pending);
@@ -264,12 +307,12 @@ async function showAccount(auth: AuthService, view: ChatViewProvider): Promise<v
   }
   type Item = vscode.QuickPickItem & { action?: () => unknown };
   const dash = '-';
-  const limit = account.spendLimitUsd === null || account.spendLimitUsd === undefined ? t('host.account.noLimit') : formatUsd(account.spendLimitUsd);
+  const limit = account.spendLimitCoins === null || account.spendLimitCoins === undefined ? t('host.account.noLimit') : coins(account.spendLimitCoins);
   const facts: Item[] = [
-    { label: `$(credit-card) ${t('host.account.balance')}`, description: account.balanceDisplay ?? dash },
+    { label: `$(gisoo-coin) ${t('host.account.balance')}`, description: account.balanceCoins === undefined ? dash : coins(account.balanceCoins) },
     { label: `$(folder) ${t('host.account.project')}`, description: account.projectName ?? dash },
     { label: `$(key) ${t('host.account.key')}`, description: [account.keyName, account.keyPrefix].filter(Boolean).join(' ') || dash },
-    { label: `$(graph) ${t('host.account.spent')}`, description: `${formatUsd(account.spentUsd ?? 0)} / ${limit}` },
+    { label: `$(graph) ${t('host.account.spent')}`, description: `${coins(account.spentCoins ?? 0)} / ${limit}` },
     { label: `$(globe) ${t('host.account.endpoint')}`, description: account.baseUrl },
   ];
   if (account.error) facts.push({ label: `$(warning) ${t('host.account.lastError')}`, description: account.error });
@@ -288,26 +331,48 @@ async function showAccount(auth: AuthService, view: ChatViewProvider): Promise<v
   await picked?.action?.();
 }
 
-// -- Status bar --------------------------------------------------------------------------------------
-
-function formatUsd(usd: number): string {
-  return `$${usd.toFixed(2)}`;
+/** "Move chat panel": right, left or bottom for the side panel, or a new editor tab. */
+async function chooseLocation(tabs: ChatTabs): Promise<void> {
+  type Item = vscode.QuickPickItem & { run: () => unknown };
+  const now = chatLocation();
+  const place = (loc: ChatLocation, icon: string): Item => ({
+    label: `$(${icon}) ${t(`host.location.${loc}` as HostStringKey)}`,
+    description: loc === now ? t('host.location.current') : loc === 'right' && !hasSecondarySidebar() ? t('host.location.needsNewer') : undefined,
+    run: () => moveChat(loc),
+  });
+  const items: Item[] = [
+    place('right', 'layout-sidebar-right'),
+    place('left', 'layout-sidebar-left'),
+    place('bottom', 'layout-panel'),
+    { label: '', kind: vscode.QuickPickItemKind.Separator, run: () => undefined },
+    { label: `$(multiple-windows) ${t('host.location.tab')}`, description: t('host.location.tabDetail'), run: () => tabs.open() },
+  ];
+  const picked = await vscode.window.showQuickPick(items, { title: t('host.location.title') });
+  await picked?.run();
 }
 
-/** Status-bar item with the dollar balance; opens the account quick pick, or sign-in when signed out. */
+// -- Status bar --------------------------------------------------------------------------------------
+
+/** An amount in Gisoo coins in the UI language. Gisoo never shows dollars. */
+function coins(amount: number): string {
+  return formatCoins(amount, getSettings().language);
+}
+
+/** Status-bar item: the Gisoo mark and the coin balance; opens the account quick pick, or sign-in when signed out. */
 function createStatusItem(auth: AuthService): vscode.Disposable {
   const item = vscode.window.createStatusBarItem('gisoo.balance', vscode.StatusBarAlignment.Right, 100);
   item.name = 'Gisoo';
   const render = (account: AccountInfo): void => {
     if (!account.signedIn) {
-      item.text = `$(account) ${t('host.status.signIn')}`;
+      item.text = `$(gisoo-logo) ${t('host.status.signIn')}`;
       item.tooltip = t('host.status.signInTooltip');
       item.command = 'gisoo.signIn';
       item.backgroundColor = undefined;
     } else {
-      const balance = account.balanceDisplay ?? (account.balanceUsd === undefined ? undefined : formatUsd(account.balanceUsd));
-      const shown = getSettings().showCost && balance ? balance : '';
-      item.text = `$(account) Gisoo ${shown}`.trimEnd();
+      const lang = getSettings().language;
+      const balance = account.balanceCoins === undefined ? undefined : formatCoins(account.balanceCoins, lang);
+      // Only the coin and the balance: the status bar is shared with every other extension.
+      item.text = getSettings().showCost && account.balanceCoins !== undefined ? `$(gisoo-coin) ${formatCoinNumber(account.balanceCoins, lang)}` : '$(gisoo-logo)';
       item.tooltip = account.error ? t('host.status.errorTooltip', account.error) : t('host.status.balanceTooltip', balance ?? '-');
       item.command = 'gisoo.showAccount';
       item.backgroundColor = account.error ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;

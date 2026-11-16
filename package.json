@@ -2,7 +2,7 @@
   "name": "gisoo-vscode",
   "displayName": "Gisoo — AI Coding Agent",
   "description": "An agentic coding assistant for VS Code, powered by Gisoo: plans, reads your code, edits with diffs you approve, runs commands, and shows your credit.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "gisoo",
   "license": "MIT",
   "author": {
@@ -45,7 +45,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished",
-    "onUri"
+    "onUri",
+    "onWebviewPanel:gisoo.chatTab"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -75,6 +76,20 @@
           "title": "%view.container.title%",
           "icon": "media/gisoo.svg"
         }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "gisoo-secondary",
+          "title": "%view.container.title%",
+          "icon": "media/gisoo.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "gisoo-panel",
+          "title": "%view.container.title%",
+          "icon": "media/gisoo.svg"
+        }
       ]
     },
     "views": {
@@ -84,7 +99,8 @@
           "id": "gisoo.chat",
           "name": "%view.chat.name%",
           "icon": "media/gisoo.svg",
-          "contextualTitle": "Gisoo"
+          "contextualTitle": "Gisoo",
+          "when": "config.gisoo.chatLocation == 'left' || gisoo.noSecondarySidebar && config.gisoo.chatLocation != 'bottom'"
         },
         {
           "type": "tree",
@@ -92,7 +108,46 @@
           "name": "%view.agents.name%",
           "icon": "media/gisoo.svg",
           "contextualTitle": "Gisoo",
-          "visibility": "collapsed"
+          "visibility": "collapsed",
+          "when": "config.gisoo.chatLocation == 'left' || gisoo.noSecondarySidebar && config.gisoo.chatLocation != 'bottom'"
+        }
+      ],
+      "gisoo-secondary": [
+        {
+          "type": "webview",
+          "id": "gisoo.chatSecondary",
+          "name": "%view.chat.name%",
+          "icon": "media/gisoo.svg",
+          "contextualTitle": "Gisoo",
+          "when": "config.gisoo.chatLocation == 'right' && !gisoo.noSecondarySidebar"
+        },
+        {
+          "type": "tree",
+          "id": "gisoo.agentsSecondary",
+          "name": "%view.agents.name%",
+          "icon": "media/gisoo.svg",
+          "contextualTitle": "Gisoo",
+          "visibility": "collapsed",
+          "when": "config.gisoo.chatLocation == 'right' && !gisoo.noSecondarySidebar"
+        }
+      ],
+      "gisoo-panel": [
+        {
+          "type": "webview",
+          "id": "gisoo.chatPanel",
+          "name": "%view.chat.name%",
+          "icon": "media/gisoo.svg",
+          "contextualTitle": "Gisoo",
+          "when": "config.gisoo.chatLocation == 'bottom'"
+        },
+        {
+          "type": "tree",
+          "id": "gisoo.agentsPanel",
+          "name": "%view.agents.name%",
+          "icon": "media/gisoo.svg",
+          "contextualTitle": "Gisoo",
+          "visibility": "collapsed",
+          "when": "config.gisoo.chatLocation == 'bottom'"
         }
       ]
     },
@@ -194,6 +249,36 @@
         "title": "%command.agent.retry%",
         "category": "Gisoo",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "gisoo.openInTab",
+        "title": "%command.openInTab%",
+        "category": "Gisoo",
+        "icon": "$(multiple-windows)"
+      },
+      {
+        "command": "gisoo.moveChat",
+        "title": "%command.moveChat%",
+        "category": "Gisoo",
+        "icon": "$(layout)"
+      },
+      {
+        "command": "gisoo.moveToRight",
+        "title": "%command.moveToRight%",
+        "category": "Gisoo",
+        "icon": "$(layout-sidebar-right)"
+      },
+      {
+        "command": "gisoo.moveToLeft",
+        "title": "%command.moveToLeft%",
+        "category": "Gisoo",
+        "icon": "$(layout-sidebar-left)"
+      },
+      {
+        "command": "gisoo.moveToBottom",
+        "title": "%command.moveToBottom%",
+        "category": "Gisoo",
+        "icon": "$(layout-panel)"
       }
     ],
     "menus": {
@@ -233,6 +318,10 @@
         {
           "command": "gisoo.agent.retry",
           "when": "false"
+        },
+        {
+          "command": "gisoo.moveToRight",
+          "when": "!gisoo.noSecondarySidebar"
         }
       ],
       "editor/context": [
@@ -245,40 +334,72 @@
       "view/title": [
         {
           "command": "gisoo.newChat",
-          "when": "view == gisoo.chat",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/",
           "group": "navigation@1"
         },
         {
-          "command": "gisoo.stop",
-          "when": "view == gisoo.chat && gisoo.running",
+          "command": "gisoo.openInTab",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/",
           "group": "navigation@2"
         },
         {
-          "command": "gisoo.openSettings",
-          "when": "view == gisoo.chat",
+          "command": "gisoo.stop",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/ && gisoo.running",
           "group": "navigation@3"
         },
         {
+          "command": "gisoo.openSettings",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gisoo.moveToRight",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/ && view != gisoo.chatSecondary && !gisoo.noSecondarySidebar",
+          "group": "location@1"
+        },
+        {
+          "command": "gisoo.moveToLeft",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/ && view != gisoo.chat",
+          "group": "location@2"
+        },
+        {
+          "command": "gisoo.moveToBottom",
+          "when": "view =~ /^gisoo\\.chat(Secondary|Panel)?$/ && view != gisoo.chatPanel",
+          "group": "location@3"
+        },
+        {
           "command": "gisoo.showAgents",
-          "when": "view == gisoo.agents",
+          "when": "view =~ /^gisoo\\.agents(Secondary|Panel)?$/",
           "group": "navigation@1"
         }
       ],
       "view/item/context": [
         {
           "command": "gisoo.agent.stop",
-          "when": "view == gisoo.agents && viewItem == agent.running",
+          "when": "view =~ /^gisoo\\.agents(Secondary|Panel)?$/ && viewItem == agent.running",
           "group": "inline@1"
         },
         {
           "command": "gisoo.agent.open",
-          "when": "view == gisoo.agents && viewItem == agent.finished",
+          "when": "view =~ /^gisoo\\.agents(Secondary|Panel)?$/ && viewItem == agent.finished",
           "group": "inline@1"
         },
         {
           "command": "gisoo.agent.retry",
-          "when": "view == gisoo.agents && viewItem == agent.finished",
+          "when": "view =~ /^gisoo\\.agents(Secondary|Panel)?$/ && viewItem == agent.finished",
           "group": "inline@2"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gisoo.openInTab",
+          "when": "activeWebviewPanelId == 'gisoo.chatTab'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gisoo.stop",
+          "when": "activeWebviewPanelId == 'gisoo.chatTab' && gisoo.running",
+          "group": "navigation@2"
         }
       ]
     },
@@ -293,7 +414,13 @@
         "command": "gisoo.newChat",
         "key": "ctrl+alt+n",
         "mac": "cmd+alt+n",
-        "when": "view.gisoo.chat.visible && !terminalFocus"
+        "when": "(view.gisoo.chat.visible || view.gisoo.chatSecondary.visible || view.gisoo.chatPanel.visible || activeWebviewPanelId == 'gisoo.chatTab') && !terminalFocus"
+      },
+      {
+        "command": "gisoo.openInTab",
+        "key": "ctrl+shift+alt+n",
+        "mac": "cmd+shift+alt+n",
+        "when": "!terminalFocus"
       }
     ],
     "configuration": {
@@ -471,6 +598,38 @@
           "scope": "application",
           "description": "%config.maxSteps%",
           "order": 18
+        },
+        "gisoo.chatLocation": {
+          "type": "string",
+          "enum": [
+            "right",
+            "left",
+            "bottom"
+          ],
+          "default": "right",
+          "enumDescriptions": [
+            "%config.chatLocation.right%",
+            "%config.chatLocation.left%",
+            "%config.chatLocation.bottom%"
+          ],
+          "description": "%config.chatLocation%",
+          "order": 0
+        }
+      }
+    },
+    "icons": {
+      "gisoo-logo": {
+        "description": "Gisoo",
+        "default": {
+          "fontPath": "media/gisoo-icons.woff",
+          "fontCharacter": "\\E900"
+        }
+      },
+      "gisoo-coin": {
+        "description": "Gisoo coin",
+        "default": {
+          "fontPath": "media/gisoo-icons.woff",
+          "fontCharacter": "\\E901"
         }
       }
     }

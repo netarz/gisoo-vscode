@@ -2,7 +2,6 @@
   "view.container.title": "Gisoo",
   "view.chat.name": "Chat",
   "view.agents.name": "Agents",
-
   "command.newChat": "New Chat",
   "command.focus": "Open Chat",
   "command.signIn": "Sign In with Gisoo",
@@ -21,7 +20,6 @@
   "command.agent.open": "Open Agent Transcript",
   "command.agent.stop": "Stop Agent",
   "command.agent.retry": "Run Agent Again",
-
   "config.title": "Gisoo",
   "config.region": "Which Gisoo endpoint to use. Choose \"iran\" when gisoo.pro is not reachable directly from your network.",
   "config.region.global": "gisoo.pro (global)",
@@ -33,7 +31,7 @@
   "config.permissionMode.autoEdit": "Edits are applied directly; commands still ask.",
   "config.permissionMode.plan": "Read-only: Gisoo writes a plan and stops.",
   "config.permissionMode.bypass": "Edits and commands run without asking; only irreversible commands still ask. Use only in a project you can restore.",
-  "config.maxCostPerTask": "Stop a run when its estimated cost (in US dollars) reaches this amount. 0 means no limit.",
+  "config.maxCostPerTask": "Stop a run when its estimated cost (in Gisoo coins) reaches this amount. 0 means no limit.",
   "config.showCost": "Show the estimated cost of each turn and the balance in the status bar.",
   "config.language": "Language of the Gisoo chat interface.",
   "config.language.auto": "Follow the VS Code display language.",
@@ -53,6 +51,14 @@
   "config.allowedCommands": "Command prefixes the agent may run without asking, for example `npm test`. Commands that chain, redirect or substitute through the shell always ask. Read from your user settings only.",
   "config.customInstructions": "Extra instructions added to every request. Read from your user settings only.",
   "config.maxSteps": "Maximum number of model steps in one task.",
-
-  "capabilities.untrustedWorkspaces": "In an untrusted workspace Gisoo does not run commands or project-defined commands, skills and agents, and ignores workspace-level values of the endpoint, permission and tool settings."
+  "capabilities.untrustedWorkspaces": "In an untrusted workspace Gisoo does not run commands or project-defined commands, skills and agents, and ignores workspace-level values of the endpoint, permission and tool settings.",
+  "command.openInTab": "New chat in an editor tab",
+  "command.moveChat": "Move chat panel…",
+  "command.moveToRight": "Move chat to the right sidebar",
+  "command.moveToLeft": "Move chat to the left sidebar",
+  "command.moveToBottom": "Move chat to the bottom panel",
+  "config.chatLocation": "Where the Gisoo chat panel opens. Chats can also be opened in editor tabs (Gisoo: New chat in an editor tab), several at once.",
+  "config.chatLocation.right": "Right sidebar (secondary side bar). Needs VS Code 1.106 or newer; older versions use the left sidebar.",
+  "config.chatLocation.left": "Left sidebar (activity bar).",
+  "config.chatLocation.bottom": "Bottom panel, next to the terminal."
 }

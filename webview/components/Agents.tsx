@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { AgentInfo, AgentStatus } from '../../src/shared/protocol';
-import { clampText, formatDuration, formatTokens, formatUsd } from '../format';
+import { clampText, formatDuration, formatTokens, formatCost } from '../format';
 import { t, type StringKey } from '../strings';
 import { useAppState } from '../store';
 import { post } from '../vscode';
@@ -65,7 +65,7 @@ function AgentRow({ item, now }: { item: AgentInfo; now: number }): JSX.Element 
           <span class="badge agent-badge">{t(STATUS_KEY[item.status])}</span>
           <span>{elapsed(item, now)}</span>
           <span>{t('agents.tokens', { n: formatTokens(item.tokens) })}</span>
-          <span>{formatUsd(item.costUsd)}</span>
+          <span>{formatCost(item.costUsd)}</span>
           {item.parentId ? <span class="agent-parent">{t('agents.parent', { id: item.parentId })}</span> : null}
         </div>
         {item.lastStep ? <div class="list-sub agent-step" dir="auto" title={item.lastStep}>{clampText(item.lastStep, 160)}</div> : null}

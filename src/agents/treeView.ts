@@ -5,6 +5,7 @@
  */
 import * as vscode from 'vscode';
 import type { AgentInfo, AgentStatus, UiLanguage } from '../shared/protocol';
+import { formatUsdAsCoins } from '../shared/coins';
 import { hostStr, type HostStringKey } from '../ui/strings';
 
 /** Refresh period for the elapsed time while something runs. */
@@ -50,7 +51,10 @@ export class AgentTreeProvider implements vscode.TreeDataProvider<AgentNode>, vs
   /** True once VS Code has asked for the root items, i.e. the view was opened and resolved. */
   requested = false;
 
-  constructor(private readonly language: () => UiLanguage) {}
+  constructor(
+    private readonly language: () => UiLanguage,
+    private readonly coinRate: () => number | undefined = () => undefined,
+  ) {}
 
   /** Replaces the whole list (the `agents` message). */
   setAll(items: AgentInfo[]): void {
@@ -84,7 +88,7 @@ export class AgentTreeProvider implements vscode.TreeDataProvider<AgentNode>, vs
     item.contextValue = isRunning(node.status) ? 'agent.running' : 'agent.finished';
     const lines = [
       `${this.t(STATUS_KEY[node.status])} - ${elapsedSeconds(node)} s`,
-      `${node.tokens} tokens - $${node.costUsd.toFixed(2)}`,
+      `${node.tokens} tokens - ${formatUsdAsCoins(node.costUsd, this.coinRate(), this.language())}`,
     ];
     if (node.parentId) lines.push(`parent: ${node.parentId}`);
     if (node.lastStep) lines.push(node.lastStep);

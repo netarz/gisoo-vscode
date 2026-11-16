@@ -1,19 +1,22 @@
 /**
- * Sidebar chat view (`gisoo.chat`). It owns the webview HTML (strict CSP), validates every message
- * that comes back, handles the editor-facing messages itself (files, links, auth, attachments, code
- * actions) and hands everything else to the session controller.
+ * The chat surfaces. `ChatHost` owns one chat's webview plumbing: the HTML (strict CSP), validation
+ * of every message that comes back, the editor-facing messages (files, links, auth, attachments,
+ * code actions); everything else goes to that chat's session controller. `ChatViewProvider` is the
+ * side-panel chat, shown on the right, on the left or at the bottom (see placement.ts); every editor
+ * tab (chatTabs.ts) has a host and a controller of its own.
  */
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import type { AuthService } from '../auth/service';
 import { getSettings } from '../config';
+import { formatCoins } from '../shared/coins';
 import type { AccountInfo, Attachment, HostToWebview, InitState, WebviewToHost } from '../shared/protocol';
 import { relativeToWorkspace } from '../tools/workspace';
 import { hostStr, stringsFor, type HostStringKey } from './strings';
 
 const t = (key: HostStringKey, ...args: Array<string | number>): string => hostStr(getSettings().language, key, ...args);
 
-export const CHAT_VIEW_ID = 'gisoo.chat';
+export { CHAT_VIEW_ID } from './placement';
 
 /** What the provider needs from the agent side (runner.ts SessionController satisfies this). */
 export interface ChatController {
@@ -47,7 +50,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
     case 'ready': case 'stop': case 'retry': case 'session.new': case 'session.list': case 'models.refresh':
     case 'attach.activeFile': case 'attach.selection': case 'account.refresh': case 'auth.signIn':
     case 'auth.apiKey': case 'auth.enterCode': case 'auth.signOut': case 'auth.cancel': case 'auth.copyLink': case 'auth.openLink': case 'plan.start': case 'memory.open':
-    case 'context.reload':
+    case 'context.reload': case 'tab.open': case 'location.choose':
       return raw as WebviewToHost;
     case 'auth.submitCode':
       return str(m.code) && m.code.length <= 2000 ? (raw as WebviewToHost) : undefined;
@@ -101,28 +104,34 @@ export function selectionAttachment(editor: vscode.TextEditor | undefined = vsco
 
 const EXCLUDE = '**/{node_modules,.git,dist,out,build,.next,.venv,__pycache__,vendor,coverage}/**';
 
+/** The side-panel chat: one controller behind whichever of the three view locations is in use. */
 export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
-  private view: vscode.WebviewView | undefined;
+  readonly host: ChatHost;
+  private readonly views = new Set<vscode.WebviewView>();
   private readonly disposables: vscode.Disposable[] = [];
   private pendingFocus = false;
 
   constructor(
-    private readonly context: vscode.ExtensionContext,
-    private readonly auth: AuthService,
-    private readonly controller: ChatController,
+    context: vscode.ExtensionContext,
+    auth: AuthService,
+    controller: ChatController,
+    /** Id of the view for the current location setting. */
+    private readonly viewId: () => string,
   ) {
-    this.disposables.push(this.auth.onDidChange((account) => this.post({ type: 'account', account })));
+    this.host = new ChatHost(context, auth, controller, () => this.reveal());
+    this.disposables.push(this.host);
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
-    this.view = view;
-    const mediaRoot = vscode.Uri.joinPath(this.context.extensionUri, 'media');
-    view.webview.options = { enableScripts: true, localResourceRoots: [mediaRoot] };
-    view.webview.html = this.html(view.webview, mediaRoot);
-    const sub = view.webview.onDidReceiveMessage((raw: unknown) => void this.onMessage(raw));
+    this.views.add(view);
+    const binding = this.host.bind(view.webview);
+    const visibility = view.onDidChangeVisibility(() => {
+      if (view.visible) this.host.markInteracted();
+    });
     view.onDidDispose(() => {
-      sub.dispose();
-      if (this.view === view) this.view = undefined;
+      binding.dispose();
+      visibility.dispose();
+      this.views.delete(view);
     });
     if (this.pendingFocus) {
       this.pendingFocus = false;
@@ -132,37 +141,104 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
 
   /** Posts to the webview; false when the view is not open. */
   post(message: HostToWebview): boolean {
-    if (!this.view) return false;
-    void this.view.webview.postMessage(message);
-    return true;
+    return this.host.post(message);
   }
 
-  /** True while the webview view is resolved (opened at least once and not disposed). */
+  /** True while a chat view is resolved (opened at least once and not disposed). */
   get resolved(): boolean {
-    return this.view !== undefined;
+    return this.views.size > 0;
+  }
+
+  /** View ids that are resolved right now. */
+  get resolvedIds(): string[] {
+    return [...this.views].map((v) => v.viewType);
   }
 
   get visible(): boolean {
-    return Boolean(this.view?.visible);
+    return [...this.views].some((v) => v.visible);
   }
 
   async reveal(): Promise<void> {
-    if (this.view) {
-      this.view.show(false);
+    const id = this.viewId();
+    const view = [...this.views].find((v) => v.viewType === id);
+    if (view) {
+      view.show(false);
       this.post({ type: 'focus' });
     } else {
       this.pendingFocus = true;
-      await vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`);
+      await vscode.commands.executeCommand(`${id}.focus`);
     }
   }
 
   /** Shows the view and delivers an attachment (used by the "attach" commands). */
+  attach(attachment: Attachment | undefined, emptyMessage: string): Promise<void> {
+    return this.host.attach(attachment, emptyMessage);
+  }
+
+  dispose(): void {
+    this.disposables.forEach((d) => d.dispose());
+  }
+}
+
+/** One chat's webview plumbing, shared by the side panel and the editor tabs. */
+export class ChatHost implements vscode.Disposable {
+  private readonly webviews = new Set<vscode.Webview>();
+  private readonly disposables: vscode.Disposable[] = [];
+  private readonly interacted = new vscode.EventEmitter<void>();
+  /** The user typed, clicked or brought this chat into view: it is the one commands now act on. */
+  readonly onDidInteract = this.interacted.event;
+
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly auth: AuthService,
+    private readonly controller: ChatController,
+    private readonly revealChat: () => Promise<void>,
+  ) {
+    this.disposables.push(this.interacted, this.auth.onDidChange((account) => this.post({ type: 'account', account })));
+  }
+
+  /** Loads the chat into a webview; disposing the result detaches it. */
+  bind(webview: vscode.Webview): vscode.Disposable {
+    const mediaRoot = vscode.Uri.joinPath(this.context.extensionUri, 'media');
+    webview.options = { enableScripts: true, localResourceRoots: [mediaRoot] };
+    webview.html = this.html(webview, mediaRoot);
+    this.webviews.add(webview);
+    const sub = webview.onDidReceiveMessage((raw: unknown) => {
+      this.interacted.fire();
+      void this.onMessage(raw);
+    });
+    return { dispose: () => {
+      sub.dispose();
+      this.webviews.delete(webview);
+    } };
+  }
+
+  markInteracted(): void {
+    this.interacted.fire();
+  }
+
+  /** Posts to the webview; false when none is loaded. */
+  post(message: HostToWebview): boolean {
+    if (!this.webviews.size) return false;
+    for (const webview of this.webviews) void webview.postMessage(message);
+    return true;
+  }
+
+  get bound(): boolean {
+    return this.webviews.size > 0;
+  }
+
+  async reveal(): Promise<void> {
+    await this.revealChat();
+  }
+
+  /** Shows the chat and delivers an attachment (used by the "attach" commands). */
   async attach(attachment: Attachment | undefined, emptyMessage: string): Promise<void> {
     if (!attachment) {
       void vscode.window.showInformationMessage(emptyMessage);
       return;
     }
-    await this.reveal();
+    await this.revealChat();
     this.post({ type: 'attach', attachment });
   }
 
@@ -222,7 +298,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         // The card shows the error itself (account.signInError); no toast on top of it.
         try {
           const info = await this.auth.completeWithCode(msg.code);
-          this.post({ type: 'toast', level: 'info', text: info.balanceDisplay ? t('host.signedInWithBalance', info.balanceDisplay) : t('host.signedIn') });
+          this.post({ type: 'toast', level: 'info', text: info.balanceCoins !== undefined ? t('host.signedInWithBalance', formatCoins(info.balanceCoins, getSettings().language)) : t('host.signedIn') });
         } catch {
           /* shown on the card */
         }
@@ -275,6 +351,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       case 'link.open':
         await this.openLink(msg.url);
         return true;
+      case 'tab.open':
+        await vscode.commands.executeCommand('gisoo.openInTab');
+        return true;
+      case 'location.choose':
+        await vscode.commands.executeCommand('gisoo.moveChat');
+        return true;
       default:
         return false;
     }
@@ -283,7 +365,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
   private async signIn(run: () => Promise<AccountInfo>): Promise<void> {
     try {
       const info = await run();
-      this.post({ type: 'toast', level: 'info', text: info.balanceDisplay ? t('host.signedInWithBalance', info.balanceDisplay) : t('host.signedIn') });
+      this.post({ type: 'toast', level: 'info', text: info.balanceCoins !== undefined ? t('host.signedInWithBalance', formatCoins(info.balanceCoins, getSettings().language)) : t('host.signedIn') });
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       // Cancelling or restarting a sign-in is the user's own action, not an error worth a toast.

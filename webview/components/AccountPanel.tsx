@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { Links } from '../../src/shared/protocol';
-import { formatUsd } from '../format';
+import { formatCoinText } from '../format';
+import { GisooCoin } from './GisooMark';
 import { t } from '../strings';
 import { post } from '../vscode';
 import { useAppState } from '../store';
@@ -8,7 +9,7 @@ import { Button, Icon, IconButton, Overlay } from './common';
 
 export function AccountPanel({ onClose }: { onClose: () => void }): JSX.Element {
   const { account, version } = useAppState();
-  const limit = account.spendLimitUsd === null || account.spendLimitUsd === undefined ? t('account.noLimit') : formatUsd(account.spendLimitUsd);
+  const limit = account.spendLimitCoins === null || account.spendLimitCoins === undefined ? t('account.noLimit') : formatCoinText(account.spendLimitCoins);
   const open = (url: string) => post({ type: 'link.open', url });
 
   return (
@@ -21,7 +22,7 @@ export function AccountPanel({ onClose }: { onClose: () => void }): JSX.Element 
       ) : null}
       <div class="account-balance">
         <span class="account-balance-label">{t('account.balance')}</span>
-        <span class="account-balance-value">{account.balanceDisplay ?? '–'}</span>
+        <span class="account-balance-value"><GisooCoin size={18} /> {formatCoinText(account.balanceCoins)}</span>
         <IconButton icon="refresh" label={t('account.refresh')} onClick={() => post({ type: 'account.refresh' })} />
       </div>
       <dl class="account-facts">
@@ -33,7 +34,7 @@ export function AccountPanel({ onClose }: { onClose: () => void }): JSX.Element 
           {account.keyPrefix ? <code class="mono">{account.keyPrefix}…</code> : null}
         </dd>
         <dt>{t('account.spent')}</dt>
-        <dd>{formatUsd(account.spentUsd ?? 0)} / {limit}</dd>
+        <dd>{formatCoinText(account.spentCoins ?? 0)} / {limit}</dd>
         <dt>{account.region === 'iran' ? t('account.region.iran') : t('account.region.global')}</dt>
         <dd><code class="mono">{account.baseUrl}</code></dd>
       </dl>

@@ -69,10 +69,11 @@ export interface WireModel {
 }
 
 export interface MeResponse {
-  balance?: { usd?: number; usd_display?: string };
+  /** Amounts may arrive as strings ("12.408114"); read them through shared/coins toNumber(). */
+  balance?: { usd?: number | string; usd_display?: string; coins?: number | string; coin_rate?: number | string };
   status?: string;
   project?: { id?: number | string; name?: string };
-  key?: { name?: string; prefix?: string; spend_limit_usd?: number | null; spent_usd?: number };
+  key?: { name?: string; prefix?: string; spend_limit_usd?: number | string | null; spent_usd?: number | string };
 }
 
 export interface TokenResponse {
