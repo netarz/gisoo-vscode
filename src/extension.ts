@@ -27,6 +27,7 @@ import { CHAT_TAB_VIEW_TYPE, ChatTabs } from './ui/chatTabs';
 import { ChatViewProvider, fileAttachment, selectionAttachment, type ChatHost } from './ui/chatViewProvider';
 import { AGENT_VIEWS, CHAT_VIEWS, chatLocation, chatViewId, hasSecondarySidebar, moveChat, type ChatLocation } from './ui/placement';
 import { hostStr, type HostStringKey } from './ui/strings';
+import { setVoiceInput, VoiceInput } from './voice/service';
 
 const t = (key: HostStringKey, ...args: Array<string | number>): string => hostStr(getSettings().language, key, ...args);
 
@@ -59,6 +60,12 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
     userAgent: `gisoo-vscode/${version}`,
   });
   const auth = new AuthService(context, client);
+  const voice = new VoiceInput({
+    transcribe: (audio, opts) => client.transcribe(audio, opts),
+    message: (problem, detail) => hostStr(getSettings().language, `host.voice.${problem}` as HostStringKey, detail ?? ''),
+  });
+  setVoiceInput(voice);
+  context.subscriptions.push({ dispose: () => setVoiceInput(undefined) });
   const store = new SessionStore(context.globalStorageUri.fsPath);
 
   // The provider is created after the controller, so `post` closes over it.

@@ -61,7 +61,7 @@ function readImage(file: File): Promise<Attachment | 'too-large' | 'unsupported'
 
 export function InputBar({ starter }: { starter?: { text: string; seq: number } }): JSX.Element {
   const state = useAppState();
-  const { session, slashCommands, showCost, fileResults, prefill, attachQueue, focusSeq } = state;
+  const { session, slashCommands, showCost, fileResults, prefill, attachQueue, focusSeq, voice, voiceText } = state;
   const running = session.running;
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [text, setTextState] = useState(() => getPersisted().draft ?? '');
@@ -118,6 +118,45 @@ export function InputBar({ starter }: { starter?: { text: string; seq: number } 
       focus();
     }
   }, [prefill?.seq]);
+
+  // Voice input: the host records and transcribes; the text joins whatever is already typed.
+  const textRef = useRef(text);
+  textRef.current = text;
+  useEffect(() => {
+    if (!voiceText?.text) {
+      return;
+    }
+    const current = textRef.current;
+    const joined = current && !/\s$/.test(current) ? `${current} ${voiceText.text}` : current + voiceText.text;
+    setText(joined);
+    focus();
+    requestAnimationFrame(() => {
+      const el = textarea.current;
+      if (el) {
+        el.selectionStart = el.selectionEnd = el.value.length;
+      }
+    });
+  }, [voiceText?.seq]);
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (voice.state !== 'recording') {
+      return;
+    }
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, [voice.state]);
+  const voiceBusy = voice.state !== 'idle';
+  const elapsed = voice.startedAt ? Math.max(0, Math.floor((now - voice.startedAt) / 1000)) : 0;
+  const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+  const toggleVoice = () => {
+    if (voice.state === 'idle') {
+      post({ type: 'voice.start' });
+    } else if (voice.state === 'recording') {
+      post({ type: 'voice.stop' });
+    }
+  };
 
   useEffect(() => {
     if (starter?.text) {
@@ -235,6 +274,9 @@ export function InputBar({ starter }: { starter?: { text: string; seq: number } 
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       send(text, attachments);
+    } else if (event.key === 'Escape' && (voice.state === 'starting' || voice.state === 'recording')) {
+      event.preventDefault();
+      post({ type: 'voice.cancel' });
     } else if (event.key === 'Escape' && running) {
       post({ type: 'stop' });
     }
@@ -363,6 +405,29 @@ export function InputBar({ starter }: { starter?: { text: string; seq: number } 
           <Icon name="chevron-up" class="header-chevron" />
         </button>
         <span class="input-foot-spacer" />
+        {voiceBusy ? (
+          <span class={`voice-status is-${voice.state}`} role="status" aria-live="polite">
+            {voice.state === 'recording' ? <span class="voice-dot" /> : <Icon name="loading" spin />}
+            <span>
+              {voice.state === 'recording'
+                ? `${t('input.voice.recording')} ${clock}`
+                : voice.state === 'starting'
+                  ? t('input.voice.starting')
+                  : t('input.voice.transcribing')}
+            </span>
+            {voice.state !== 'transcribing' ? (
+              <IconButton icon="close" label={t('input.voice.cancel')} onClick={() => post({ type: 'voice.cancel' })} />
+            ) : null}
+          </span>
+        ) : null}
+        <IconButton
+          icon={voice.state === 'recording' ? 'debug-stop' : 'mic'}
+          label={voice.state === 'recording' ? t('input.voice.stop') : t('input.voice')}
+          class={`voice-btn${voice.state === 'recording' ? ' is-recording' : ''}`}
+          active={voice.state === 'recording'}
+          disabled={voice.state === 'starting' || voice.state === 'transcribing'}
+          onClick={toggleVoice}
+        />
         <span class="input-meta" title={t('input.context', { pct: formatPercent(session.contextUsed) })}>
           <ContextRing fraction={session.contextUsed} />
           <span class="input-meta-text">{formatPercent(session.contextUsed)}</span>

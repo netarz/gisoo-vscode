@@ -166,6 +166,24 @@ export class GisooClient {
     return this.json<TokenResponse>('POST', '/vscode/token', { auth: false, body: { code, verifier }, signal });
   }
 
+  /** Speech to text: a WAV recording to text, billed to the signed-in key like any other request. */
+  async transcribe(audio: Uint8Array, opts: { model: string; language?: string; prompt?: string; signal?: AbortSignal }): Promise<string> {
+    const form = new FormData();
+    form.append('file', new Blob([audio], { type: 'audio/wav' }), 'voice.wav');
+    form.append('model', opts.model);
+    form.append('response_format', 'json');
+    if (opts.language) form.append('language', opts.language);
+    if (opts.prompt) form.append('prompt', opts.prompt);
+    const res = await this.send('POST', '/audio/transcriptions', { form, signal: opts.signal, timeoutMs: 120_000 });
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text) as { text?: unknown };
+      return typeof json.text === 'string' ? json.text.trim() : '';
+    } catch {
+      throw new GisooError('The server returned something that is not JSON.', 'server', res.status);
+    }
+  }
+
   /** Streams a chat completion. Retries happen only before the first byte. */
   async *chat(request: ChatRequest, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
     const res = await this.send('POST', '/chat/completions', { body: request, signal, timeoutMs: this.streamTimeoutMs, stream: true });
@@ -219,7 +237,7 @@ export class GisooClient {
   private async send(
     method: 'GET' | 'POST',
     path: string,
-    opts: { auth?: boolean; body?: unknown; signal?: AbortSignal; apiKey?: string; timeoutMs: number; stream?: boolean },
+    opts: { auth?: boolean; body?: unknown; form?: FormData; signal?: AbortSignal; apiKey?: string; timeoutMs: number; stream?: boolean },
   ): Promise<Response> {
     const headers: Record<string, string> = { Accept: opts.stream ? 'text/event-stream' : 'application/json' };
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -230,7 +248,8 @@ export class GisooClient {
       headers.Authorization = `Bearer ${key}`;
     }
     const url = `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
-    const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
+    // A FormData body sets its own multipart Content-Type (with the boundary).
+    const body = opts.form ?? (opts.body === undefined ? undefined : JSON.stringify(opts.body));
 
     let rateLimitLeft = this.retries.rateLimit;
     let serverLeft = this.retries.server;

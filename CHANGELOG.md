@@ -5,6 +5,11 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-16
+
+### Added
+- Voice input: the microphone button in the chat records on the extension host (PowerShell on Windows, arecord, sox or ffmpeg elsewhere) and turns speech into text through the Gisoo gateway; the text joins the message box. Escape cancels a recording.
+
 ## [1.0.3] - 2026-11-16
 
 ### Added

@@ -330,7 +330,11 @@ export type WebviewToHost =
   /** Show one agent's transcript in a read-only editor. */
   | { type: 'agent.open'; id: string }
   /** Run a finished agent again with the same prompt and definition. */
-  | { type: 'agent.retry'; id: string };
+  | { type: 'agent.retry'; id: string }
+  /** Voice input: start recording, stop and transcribe, or throw the recording away. */
+  | { type: 'voice.start' }
+  | { type: 'voice.stop' }
+  | { type: 'voice.cancel' };
 
 // ---------------------------------------------------------------------------
 // Host -> webview
@@ -372,7 +376,13 @@ export type HostToWebview =
   /** One agent started, progressed or finished. */
   | { type: 'agentUpdate'; item: AgentInfo }
   /** Open the agents panel (from `/agents` or a command). */
-  | { type: 'agents.show' };
+  | { type: 'agents.show' }
+  /** Voice input state; `startedAt` (epoch ms) is set while recording. */
+  | { type: 'voice'; state: VoiceState; startedAt?: number }
+  /** Transcribed speech to add to the input. */
+  | { type: 'voice.text'; text: string };
+
+export type VoiceState = 'idle' | 'starting' | 'recording' | 'transcribing';
 
 /** Error codes the host uses in notices so the UI can offer the right button. */
 export const NoticeCodes = {

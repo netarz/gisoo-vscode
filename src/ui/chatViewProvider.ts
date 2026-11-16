@@ -12,6 +12,7 @@ import { getSettings } from '../config';
 import { formatCoins } from '../shared/coins';
 import type { AccountInfo, Attachment, HostToWebview, InitState, WebviewToHost } from '../shared/protocol';
 import { relativeToWorkspace } from '../tools/workspace';
+import { voiceInput } from '../voice/service';
 import { hostStr, stringsFor, type HostStringKey } from './strings';
 
 const t = (key: HostStringKey, ...args: Array<string | number>): string => hostStr(getSettings().language, key, ...args);
@@ -51,6 +52,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
     case 'attach.activeFile': case 'attach.selection': case 'account.refresh': case 'auth.signIn':
     case 'auth.apiKey': case 'auth.enterCode': case 'auth.signOut': case 'auth.cancel': case 'auth.copyLink': case 'auth.openLink': case 'plan.start': case 'memory.open':
     case 'context.reload': case 'tab.open': case 'location.choose':
+    case 'voice.start': case 'voice.stop': case 'voice.cancel':
       return raw as WebviewToHost;
     case 'auth.submitCode':
       return str(m.code) && m.code.length <= 2000 ? (raw as WebviewToHost) : undefined;
@@ -189,6 +191,8 @@ export class ChatHost implements vscode.Disposable {
   private readonly interacted = new vscode.EventEmitter<void>();
   /** The user typed, clicked or brought this chat into view: it is the one commands now act on. */
   readonly onDidInteract = this.interacted.event;
+  /** Where voice input answers this chat (one stable function per host). */
+  private readonly voiceSink = (message: HostToWebview): boolean => this.post(message);
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -359,6 +363,16 @@ export class ChatHost implements vscode.Disposable {
       case 'location.choose':
         await vscode.commands.executeCommand('gisoo.moveChat');
         return true;
+      case 'voice.start':
+      case 'voice.stop':
+      case 'voice.cancel': {
+        const voice = voiceInput();
+        if (!voice) return true;
+        if (msg.type === 'voice.start') await voice.start(this.voiceSink);
+        else if (msg.type === 'voice.stop') await voice.stop(this.voiceSink);
+        else await voice.cancel(this.voiceSink);
+        return true;
+      }
       default:
         return false;
     }
@@ -432,6 +446,7 @@ export class ChatHost implements vscode.Disposable {
   }
 
   dispose(): void {
+    void voiceInput()?.detach(this.voiceSink);
     this.disposables.forEach((d) => d.dispose());
   }
 }

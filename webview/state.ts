@@ -51,6 +51,10 @@ export interface AppState {
   agents: AgentInfo[];
   /** Bumped when the host asks to open the agents panel. */
   agentsShowSeq: number;
+  /** Voice input: what the host is doing, and since when it records. */
+  voice: { state: import('../src/shared/protocol').VoiceState; startedAt?: number };
+  /** Transcribed speech waiting to be added to the input. */
+  voiceText: { text: string; seq: number } | null;
 }
 
 export const emptySession: SessionView = {
@@ -87,6 +91,8 @@ export const initialState: AppState = {
   focusSeq: 0,
   agents: [],
   agentsShowSeq: 0,
+  voice: { state: 'idle' },
+  voiceText: null,
 };
 
 export type Action =
@@ -215,6 +221,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, prefill: { text: action.text, send: action.send, attachments: action.attachments, seq: ++prefillSeq } };
     case 'focus':
       return { ...state, focusSeq: state.focusSeq + 1 };
+    case 'voice':
+      return { ...state, voice: { state: action.state, startedAt: action.startedAt } };
+    case 'voice.text':
+      return { ...state, voiceText: { text: action.text, seq: ++prefillSeq } };
     case 'toast':
       return pushToast(state, action.level, action.text);
     case 'ui.toast':
