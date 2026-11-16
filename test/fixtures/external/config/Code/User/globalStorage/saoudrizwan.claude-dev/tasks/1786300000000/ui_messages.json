@@ -1,0 +1,69 @@
+[
+ {
+  "ts": 1786300000000,
+  "type": "say",
+  "say": "text",
+  "text": "<task>\nFix the flaky test\n</task>"
+ },
+ {
+  "ts": 1786300001000,
+  "type": "say",
+  "say": "api_req_started",
+  "text": "{\"request\":\"secret request log\"}"
+ },
+ {
+  "ts": 1786300002000,
+  "type": "say",
+  "say": "reasoning",
+  "text": "private reasoning"
+ },
+ {
+  "ts": 1786300003000,
+  "type": "say",
+  "say": "text",
+  "text": "<thinking>plan</thinking>I will read the file first."
+ },
+ {
+  "ts": 1786300004000,
+  "type": "ask",
+  "ask": "tool",
+  "text": "{\"tool\":\"readFile\",\"path\":\"src/a.ts\"}"
+ },
+ {
+  "ts": 1786300005000,
+  "type": "say",
+  "say": "command_output",
+  "text": "ls output noise"
+ },
+ {
+  "ts": 1786300006000,
+  "type": "ask",
+  "ask": "followup",
+  "text": "{\"question\":\"Which file should I change?\",\"suggest\":[]}"
+ },
+ {
+  "ts": 1786300007000,
+  "type": "say",
+  "say": "user_feedback",
+  "text": "The one in src."
+ },
+ {
+  "ts": 1786300008000,
+  "type": "say",
+  "say": "text",
+  "text": "partial streaming",
+  "partial": true
+ },
+ {
+  "ts": 1786300009000,
+  "type": "say",
+  "say": "completion_result",
+  "text": "Changed src/a.ts."
+ },
+ {
+  "ts": 1786300010000,
+  "type": "ask",
+  "ask": "completion_result",
+  "text": ""
+ }
+]

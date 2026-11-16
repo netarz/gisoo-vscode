@@ -1,0 +1,11 @@
+[
+ {
+  "role": "user",
+  "content": [
+   {
+    "type": "text",
+    "text": "<environment_details>\n# VSCode Visible Files\nsrc/a.ts\n\n# Current Working Directory (/work/demo) Files\nsrc/\n</environment_details>"
+   }
+  ]
+ }
+]

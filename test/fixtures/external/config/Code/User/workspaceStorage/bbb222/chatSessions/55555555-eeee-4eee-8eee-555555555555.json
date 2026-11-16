@@ -1,0 +1,14 @@
+{
+ "requests": [
+  {
+   "message": {
+    "text": "other folder chat"
+   },
+   "response": [
+    {
+     "value": "x"
+    }
+   ]
+  }
+ ]
+}

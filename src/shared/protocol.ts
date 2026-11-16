@@ -223,8 +223,21 @@ export interface SessionSummary {
   origin?: string;
 }
 
-/** Another AI coding tool whose chats for this folder can be continued in Gisoo. */
-export type ExternalSource = 'claude-code' | 'codex';
+/**
+ * Other AI coding tools whose chats for this folder can be continued in Gisoo, in the order the
+ * history panel lists them. `icon` is a codicon name.
+ */
+export const EXTERNAL_SOURCES = [
+  { id: 'claude-code', name: 'Claude Code', icon: 'sparkle' },
+  { id: 'codex', name: 'Codex', icon: 'terminal' },
+  { id: 'copilot', name: 'Copilot', icon: 'copilot' },
+  { id: 'gemini-cli', name: 'Gemini CLI', icon: 'star-empty' },
+  { id: 'cline', name: 'Cline', icon: 'robot' },
+  { id: 'roo-code', name: 'Roo Code', icon: 'hubot' },
+  { id: 'kilo-code', name: 'Kilo Code', icon: 'circuit-board' },
+] as const;
+
+export type ExternalSource = (typeof EXTERNAL_SOURCES)[number]['id'];
 
 /** A chat from another tool, listed in the history panel (read-only until imported). */
 export interface ExternalSessionSummary {
