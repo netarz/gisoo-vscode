@@ -26,7 +26,7 @@ import { expandCommand, findCommand } from '../context/commands';
 import type { ContextProvider } from '../context/provider';
 import { Checkpoints } from '../edits/checkpoints';
 import type { SessionStore } from '../sessions/store';
-import { ExternalChats, originKey, transcriptToSession, type ExternalSession } from '../sessions/external';
+import { ExternalChats, originKey, SOURCE_LABELS, transcriptToSession, type ExternalSession } from '../sessions/external';
 import {
   Links,
   NoticeCodes,
@@ -1780,7 +1780,7 @@ export class SessionController implements vscode.Disposable {
       this.toast('warning', this.hostT('host.external.unreadable'));
       return;
     }
-    const label = source === 'codex' ? 'Codex' : 'Claude Code';
+    const label = SOURCE_LABELS[source];
     const notice = transcript.omitted
       ? this.hostT('host.external.importedPartly', label, transcript.omitted)
       : this.hostT('host.external.imported', label);

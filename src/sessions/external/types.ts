@@ -1,5 +1,5 @@
 /** Chats from other AI coding tools, read-only. No vscode imports: the readers are unit tested in Node. */
-import type { ExternalSource } from '../../shared/protocol';
+import { EXTERNAL_SOURCES, type ExternalSource } from '../../shared/protocol';
 
 export type { ExternalSource };
 
@@ -41,7 +41,4 @@ export interface ListOptions {
   limit?: number;
 }
 
-export const SOURCE_LABELS: Record<ExternalSource, string> = {
-  'claude-code': 'Claude Code',
-  codex: 'Codex',
-};
+export const SOURCE_LABELS = Object.fromEntries(EXTERNAL_SOURCES.map((s) => [s.id, s.name])) as Record<ExternalSource, string>;

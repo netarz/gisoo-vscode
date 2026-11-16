@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
-import type { ExternalSessionSummary, ExternalSource, SessionSummary } from '../../src/shared/protocol';
+import { EXTERNAL_SOURCES, type ExternalSessionSummary, type SessionSummary } from '../../src/shared/protocol';
 import { t } from '../strings';
 import { post } from '../vscode';
 import { useAppState } from '../store';
@@ -22,15 +22,10 @@ function relativeTime(ts: number): string {
   return t('sessions.daysAgo', { n: Math.round(hours / 24) });
 }
 
-const EXTERNAL_SOURCES: Array<{ source: ExternalSource; name: string; icon: string }> = [
-  { source: 'claude-code', name: 'Claude Code', icon: 'sparkle' },
-  { source: 'codex', name: 'Codex', icon: 'terminal' },
-];
-
 export function SessionsOverlay({ onClose }: { onClose: () => void }): JSX.Element {
   const { sessions, session, external, externalLoading, externalEnabled } = useAppState();
   const groups = externalEnabled
-    ? EXTERNAL_SOURCES.map((def) => ({ ...def, items: external.filter((item) => item.source === def.source) })).filter((group) => group.items.length > 0)
+    ? EXTERNAL_SOURCES.map((def) => ({ source: def.id, name: def.name, icon: def.icon, items: external.filter((item) => item.source === def.id) })).filter((group) => group.items.length > 0)
     : [];
   const externalFlat: ExternalSessionSummary[] = groups.flatMap((group) => group.items);
   const total = sessions.length + externalFlat.length;
