@@ -223,6 +223,12 @@ export interface SessionSummary {
   origin?: string;
 }
 
+export interface SessionSearchHit {
+  id: string;
+  /** A short piece of the message that matched, on one line. */
+  snippet: string;
+}
+
 /**
  * Other AI coding tools whose chats for this folder can be continued in Gisoo, in the order the
  * history panel lists them. `icon` is a codicon name.
@@ -302,6 +308,8 @@ export type WebviewToHost =
   | { type: 'session.open'; id: string }
   | { type: 'session.delete'; id: string }
   | { type: 'session.list' }
+  /** Search the text of the saved chats; answered with `sessions.search` carrying the same `seq`. */
+  | { type: 'session.search'; query: string; seq: number }
   /** List chats from other AI tools for this folder (sent when the history panel opens). */
   | { type: 'external.list' }
   /** Copy a chat from another tool into a new Gisoo chat (or reopen the earlier copy) and open it. */
@@ -358,6 +366,8 @@ export type HostToWebview =
   /** Replace the whole session (load, switch, after compaction, after restore). */
   | { type: 'session'; session: SessionView }
   | { type: 'sessions'; items: SessionSummary[] }
+  /** Saved chats whose messages contain the query, newest first, each with the matching line. */
+  | { type: 'sessions.search'; seq: number; hits: SessionSearchHit[] }
   /** Chats from other AI tools for this folder. `enabled: false` when the setting turns them off. */
   | { type: 'externalSessions'; items: ExternalSessionSummary[]; loading: boolean; enabled: boolean }
   | { type: 'account'; account: AccountInfo }

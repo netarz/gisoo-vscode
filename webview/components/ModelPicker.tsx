@@ -7,13 +7,27 @@ import { post } from '../vscode';
 import { useAppState } from '../store';
 import { BrandIcon, brandOf, brandRank, type BrandDef } from '../brands';
 import { Icon, IconButton, Overlay, listKeyHandler, useScrollIntoView } from './common';
+import { compact, fold, matchesWords, queryWords } from '../../src/shared/search';
 
-function matches(model: ModelInfo, query: string): boolean {
-  if (!query) {
-    return true;
+/**
+ * How well a model answers the query: 0 when its name starts with it, 1 when the name contains it,
+ * 2 for any other match (id, brand, description), -1 for none. Folded, so case, Persian letters and
+ * separators do not matter: «gpt4o» finds `gpt-4o`, «anthropic» finds every Claude.
+ */
+function score(model: ModelInfo, words: string[], whole: string): number {
+  if (!words.length) {
+    return 2;
   }
-  const hay = `${model.name} ${model.id} ${model.description ?? ''}`.toLowerCase();
-  return query.toLowerCase().split(/\s+/).every((word) => hay.includes(word));
+  const name = fold(model.name);
+  const hay = `${name} ${fold(model.id)} ${fold(brandOf(model.id)?.name ?? '')} ${fold(model.description ?? '')}`;
+  if (!matchesWords(hay, words, compact(`${model.name} ${model.id}`))) {
+    return -1;
+  }
+  const nameCompact = compact(model.name);
+  if (name.startsWith(whole) || nameCompact.startsWith(whole)) {
+    return 0;
+  }
+  return name.includes(whole) || nameCompact.includes(whole) ? 1 : 2;
 }
 
 function ModelRow({ model, active, current, onPick, onHover }: {
@@ -76,10 +90,16 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
   }, [models]);
 
   const { recommended, groups } = useMemo(() => {
+    const words = queryWords(query);
+    const whole = compact(query);
+    const scores = new Map<string, number>();
     const filtered = models.filter((model) => {
-      if (!matches(model, query.trim())) return false;
-      return brandKey === null || (brandOf(model.id)?.key ?? 'other') === brandKey;
+      if (brandKey !== null && (brandOf(model.id)?.key ?? 'other') !== brandKey) return false;
+      const value = score(model, words, whole);
+      scores.set(model.id, value);
+      return value >= 0;
     });
+    const byScore = (a: ModelInfo, b: ModelInfo) => (scores.get(a.id)! - scores.get(b.id)!) || a.name.localeCompare(b.name);
     const recommended = brandKey === null ? filtered.filter((model) => model.recommended) : [];
     const byBrand = new Map<string, { brand: BrandDef | undefined; items: ModelInfo[] }>();
     for (const model of filtered) {
@@ -91,7 +111,8 @@ export function ModelPicker({ onClose }: { onClose: () => void }): JSX.Element {
       byBrand.set(key, group);
     }
     const groups = [...byBrand.values()].sort((a, b) => brandRank(a.brand) - brandRank(b.brand));
-    for (const group of groups) group.items.sort((a, b) => a.name.localeCompare(b.name));
+    for (const group of groups) group.items.sort(byScore);
+    if (words.length) recommended.sort(byScore);
     return { recommended, groups };
   }, [models, query, brandKey]);
   const flat = [...recommended, ...groups.flatMap((group) => group.items)];

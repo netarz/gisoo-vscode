@@ -434,6 +434,9 @@ export class SessionController implements vscode.Disposable {
       case 'session.list':
         await this.postSessions();
         return true;
+      case 'session.search':
+        this.post({ type: 'sessions.search', seq: msg.seq, hits: await this.store.search(String(msg.query ?? '').slice(0, 200)) });
+        return true;
       case 'external.list':
         await this.postExternal();
         return true;

@@ -10,7 +10,7 @@ import { randomBytes } from 'node:crypto';
 import type { AuthService } from '../auth/service';
 import { getSettings } from '../config';
 import { formatCoins } from '../shared/coins';
-import type { AccountInfo, Attachment, HostToWebview, InitState, WebviewToHost } from '../shared/protocol';
+import { EXTERNAL_SOURCES, type AccountInfo, type Attachment, type HostToWebview, type InitState, type WebviewToHost } from '../shared/protocol';
 import { relativeToWorkspace } from '../tools/workspace';
 import { voiceInput } from '../voice/service';
 import { hostStr, stringsFor, type HostStringKey } from './strings';
@@ -64,7 +64,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
     case 'agent.open': case 'agent.retry':
       return str(m.id) ? (raw as WebviewToHost) : undefined;
     case 'external.import':
-      return (m.source === 'claude-code' || m.source === 'codex') && str(m.id) && m.id.length <= 200 ? (raw as WebviewToHost) : undefined;
+      return EXTERNAL_SOURCES.some((def) => def.id === m.source) && str(m.id) && m.id.length <= 200 ? (raw as WebviewToHost) : undefined;
     case 'mode.set':
       return m.mode === 'ask' || m.mode === 'autoEdit' || m.mode === 'plan' || m.mode === 'bypass' ? (raw as WebviewToHost) : undefined;
     case 'approval':
@@ -81,6 +81,8 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
       return str(m.turnId) ? (raw as WebviewToHost) : undefined;
     case 'files.search':
       return str(m.query) && num(m.requestId) ? (raw as WebviewToHost) : undefined;
+    case 'session.search':
+      return str(m.query) && m.query.length <= 500 && num(m.seq) ? (raw as WebviewToHost) : undefined;
     case 'code.copy': case 'code.insert':
       return str(m.code) ? (raw as WebviewToHost) : undefined;
     case 'code.newFile':

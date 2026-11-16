@@ -32,6 +32,12 @@ export const en = {
   'sessions.external.loading': 'Looking for chats from other AI tools in this folder...',
   'sessions.external.hint': 'Continue in Gisoo. A copy opens here; the original chat is not changed.',
   'sessions.external.imported': 'continued in Gisoo',
+  'sessions.search': 'Search chats',
+  'sessions.noMatch': 'No chat matches.',
+  'sessions.searching': 'Searching the messages...',
+  'sessions.all': 'All',
+  'sessions.gisoo': 'Gisoo',
+  'sessions.startedIn': 'Started in {name}',
 
   // Model picker
   'models.title': 'Choose a model',

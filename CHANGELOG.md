@@ -5,6 +5,25 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-17
+
+### Added
+- Search in the chat history: type to filter by title, and Gisoo also looks inside the messages of
+  every saved chat, showing the matching line under the title with the words highlighted. Search
+  treats Arabic and Persian letters, Persian digits, case and the half-space alike.
+- Each chat in the history shows the mark of the system it was started in: Gisoo, or Claude Code,
+  Codex, GitHub Copilot, Gemini CLI, Cline, Roo Code or Kilo Code for chats continued from them.
+  Chips above the list filter by system.
+- Model search also matches the brand name and ignores separators (`gpt4o` finds `gpt-4o`);
+  models whose name starts with what you typed come first.
+
+### Fixed
+- Chats from GitHub Copilot, Gemini CLI, Cline, Roo Code and Kilo Code did not open when picked
+  in the history (only Claude Code and Codex chats were accepted).
+
+### Changed
+- The chat history opens faster with many chats: a chat file is read again only when it changed.
+
 ## [1.0.5] - 2026-11-16
 
 ### Added

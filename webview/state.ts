@@ -9,6 +9,7 @@ import type {
   ModelInfo,
   PermissionMode,
   QueuedMessage,
+  SessionSearchHit,
   SessionSummary,
   SessionView,
   SlashCommandInfo,
@@ -31,7 +32,7 @@ export interface AppState {
   models: ModelInfo[];
   session: SessionView;
   sessions: SessionSummary[];
-  /** Chats from other AI tools (Claude Code, Codex) for this folder. */
+  /** Chats from other AI coding tools for this folder. */
   external: ExternalSessionSummary[];
   externalLoading: boolean;
   externalEnabled: boolean;
@@ -41,6 +42,8 @@ export interface AppState {
   toasts: Toast[];
   /** Pending files.search results keyed by requestId. */
   fileResults: { requestId: number; paths: string[] } | null;
+  /** The latest answer to a session.search, matched to its request by seq. */
+  sessionHits: { seq: number; hits: SessionSearchHit[] } | null;
   /** Text (and attachments) the host asked us to put into the input. */
   prefill: { text: string; send: boolean; attachments?: import('../src/shared/protocol').Attachment[]; seq: number } | null;
   /** Attachment pushed by the host (attach current file / selection). */
@@ -85,6 +88,7 @@ export const initialState: AppState = {
   version: '',
   toasts: [],
   fileResults: null,
+  sessionHits: null,
   prefill: null,
   attachSeq: 0,
   attachQueue: [],
@@ -211,6 +215,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return withSession(state, { todos: action.todos as Todo[] });
     case 'cost':
       return withSession(state, { costUsd: action.costUsd, contextUsed: action.contextUsed });
+    case 'sessions.search':
+      return { ...state, sessionHits: { seq: action.seq, hits: action.hits } };
     case 'files.result':
       return { ...state, fileResults: { requestId: action.requestId, paths: action.paths } };
     case 'attach':

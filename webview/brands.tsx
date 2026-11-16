@@ -5,6 +5,8 @@
  */
 import type { JSX } from 'preact';
 import { BRANDS, type BrandDef } from './brands.generated';
+import { TOOL_ICONS } from './tools.generated';
+import type { ExternalSource } from '../src/shared/protocol';
 
 export type { BrandDef };
 export { BRANDS };
@@ -47,6 +49,23 @@ export function BrandIcon({ brand, size = 16 }: { brand: BrandDef | undefined; s
       aria-hidden="true"
       focusable="false"
       dangerouslySetInnerHTML={{ __html: brand.svg }}
+    />
+  );
+}
+
+/** The mark of another coding tool whose chats the history panel lists. */
+export function ToolIcon({ source, size = 16 }: { source: ExternalSource; size?: number }): JSX.Element {
+  const icon = TOOL_ICONS[source];
+  return (
+    <svg
+      class={`brand-icon tool-icon${icon.mono ? ' is-mono' : ''}`}
+      width={size}
+      height={size}
+      viewBox={icon.viewBox}
+      fill={icon.mono ? 'currentColor' : undefined}
+      aria-hidden="true"
+      focusable="false"
+      dangerouslySetInnerHTML={{ __html: icon.svg }}
     />
   );
 }

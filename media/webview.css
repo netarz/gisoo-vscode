@@ -1001,8 +1001,22 @@ li.todo-in_progress { font-weight: 600; }
 .list-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: none; }
 .list-confirm .btn { min-height: 22px; padding-block: 0; }
 
-.session-row .codicon:first-child { color: var(--vscode-descriptionForeground); }
-.model-row { align-items: flex-start; }
+.model-row { align-items: flex-start; content-visibility: auto; contain-intrinsic-size: auto 44px; }
+.session-row { align-items: flex-start; content-visibility: auto; contain-intrinsic-size: auto 40px; }
+.session-source { flex: none; display: inline-flex; margin-block-start: 2px; color: var(--vscode-descriptionForeground); }
+.session-gisoo { color: var(--gs-gold, currentColor); }
+.session-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-snippet {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--vscode-descriptionForeground); font-size: 0.85em;
+}
+.list-row.is-active .session-snippet { color: inherit; opacity: 0.85; }
+.sessions-panel mark {
+  background: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 179, 8, 0.35));
+  color: inherit; border-radius: 2px;
+}
+.session-group-label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; padding-block-start: 10px; }
+.tool-icon.is-mono { color: var(--vscode-foreground); }
 .model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-id { direction: ltr; unicode-bidi: isolate; font-family: var(--vscode-editor-font-family, monospace); }
 .model-meta .codicon { font-size: 12px; }
@@ -1018,6 +1032,8 @@ li.todo-in_progress { font-weight: 600; }
   padding: 2px 8px; border: 1px solid var(--gs-border); border-radius: 999px;
   background: transparent; color: inherit; font: inherit; font-size: 0.85em; cursor: pointer; white-space: nowrap;
 }
+/* The history has at most nine sources: let them wrap so none hides behind a scrollbar. */
+.sessions-panel .brand-chips { flex-wrap: wrap; overflow: visible; }
 .brand-chip:hover { background: var(--vscode-list-hoverBackground, var(--gs-hover)); }
 .brand-chip.is-on { border-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 

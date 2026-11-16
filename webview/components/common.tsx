@@ -73,7 +73,9 @@ export function Overlay({
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     if (initialFocus) {
-      const first = panel.current?.querySelector<HTMLElement>('input, button, [tabindex="0"]');
+      // A search field when the panel has one; the close button of the title row is not a good start.
+      const first = panel.current?.querySelector<HTMLElement>('input')
+        ?? panel.current?.querySelector<HTMLElement>('button, [tabindex="0"]');
       first?.focus();
     }
     return () => {
