@@ -916,6 +916,9 @@ li.todo-in_progress { font-weight: 600; }
 .overlay-panel {
   position: absolute;
   inset-inline: 8px;
+  /* A wide panel or an editor tab must not stretch pickers and settings edge to edge. */
+  max-width: 520px;
+  margin-inline: auto;
   display: flex;
   flex-direction: column;
   max-height: calc(100% - var(--gs-header-h) - 16px);
