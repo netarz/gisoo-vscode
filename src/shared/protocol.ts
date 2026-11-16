@@ -221,6 +221,21 @@ export interface SessionSummary {
   turnCount: number;
 }
 
+/** Another AI coding tool whose chats for this folder can be continued in Gisoo. */
+export type ExternalSource = 'claude-code' | 'codex';
+
+/** A chat from another tool, listed in the history panel (read-only until imported). */
+export interface ExternalSessionSummary {
+  source: ExternalSource;
+  id: string;
+  title: string;
+  updatedAt: number;
+  /** Known only for files small enough to count quickly. */
+  messageCount?: number;
+  /** The Gisoo chat it was already imported into, if any. */
+  importedId?: string;
+}
+
 export interface SlashCommandInfo {
   name: string;          // without the slash
   description: string;   // already localised
