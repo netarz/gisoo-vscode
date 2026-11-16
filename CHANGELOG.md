@@ -5,6 +5,8 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-16
+
 ### Added
 - Continue Claude Code and Codex chats of the same project in Gisoo: they are listed in the chat
   history (setting `gisoo.importExternalChats`) and a copy opens as a new Gisoo chat; the original
@@ -53,7 +55,7 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
   and "Open the page", which reopens the same page instead of starting a new sign-in.
 - "Enter sign-in code" accepts the whole callback URL as well as the code.
 
-## [Unreleased]
+## [1.0.3] - 2026-11-16
 
 - Instruction files: `GISOO.md` (user, project, local) with `@path` imports; `CLAUDE.md`,
   `AGENTS.md`, `.cursorrules` and `.windsurfrules` are read too.
