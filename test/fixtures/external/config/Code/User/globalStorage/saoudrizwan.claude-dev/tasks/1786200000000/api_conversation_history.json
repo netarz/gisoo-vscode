@@ -1,0 +1,24 @@
+[
+ {
+  "role": "user",
+  "content": [
+   {
+    "type": "text",
+    "text": "<task>\nFirst task\n</task>"
+   },
+   {
+    "type": "text",
+    "text": "<environment_details>\n# VSCode Visible Files\nsrc/a.ts\n\n# Current Working Directory (/work/other) Files\nsrc/\n</environment_details>"
+   }
+  ]
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "type": "text",
+    "text": "ok"
+   }
+  ]
+ }
+]

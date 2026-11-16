@@ -1,0 +1,55 @@
+{
+ "sessionId": "aaaa1111",
+ "projectHash": "111b1182b4b056ca80f7335964bf62c7940d4990fccce4f5b91db3170297fb04",
+ "startTime": "2026-11-05T09:00:00.000Z",
+ "lastUpdated": "2026-11-05T09:10:00.000Z",
+ "messages": [
+  {
+   "id": "m1",
+   "timestamp": "2026-11-05T09:00:01.000Z",
+   "type": "user",
+   "content": "Summarise the README @README.md\n--- Content from referenced files ---\nContent from @README.md:\nsecret file body"
+  },
+  {
+   "id": "m2",
+   "timestamp": "2026-11-05T09:00:05.000Z",
+   "type": "gemini",
+   "content": "It documents the install steps.",
+   "thoughts": [
+    {
+     "subject": "x",
+     "description": "hidden"
+    }
+   ],
+   "toolCalls": [
+    {
+     "id": "t",
+     "name": "read_file",
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "m3",
+   "timestamp": "2026-11-05T09:00:06.000Z",
+   "type": "info",
+   "content": "Request cancelled."
+  },
+  {
+   "id": "m4",
+   "timestamp": "2026-11-05T09:01:00.000Z",
+   "type": "user",
+   "content": [
+    {
+     "text": "Thanks, and the licence?"
+    }
+   ]
+  },
+  {
+   "id": "m5",
+   "timestamp": "2026-11-05T09:01:03.000Z",
+   "type": "gemini",
+   "content": "MIT."
+  }
+ ]
+}

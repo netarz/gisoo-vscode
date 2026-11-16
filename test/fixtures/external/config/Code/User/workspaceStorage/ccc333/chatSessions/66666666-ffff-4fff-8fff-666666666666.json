@@ -1,0 +1,14 @@
+{
+ "requests": [
+  {
+   "message": {
+    "text": "remote chat"
+   },
+   "response": [
+    {
+     "value": "x"
+    }
+   ]
+  }
+ ]
+}

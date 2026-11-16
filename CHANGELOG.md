@@ -6,9 +6,11 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
 ## [Unreleased]
 
 ### Added
-- Continue Claude Code and Codex chats of the same project in Gisoo: they are listed in the chat
-  history (setting `gisoo.importExternalChats`) and a copy opens as a new Gisoo chat; the original
-  chat is never changed.
+- Continue chats from other AI coding tools in Gisoo: Claude Code, Codex, GitHub Copilot Chat
+  (VS Code, Insiders and VSCodium), Gemini CLI, Cline, Roo Code and Kilo Code. Chats of the open
+  folder are listed in the chat history, one group per tool (setting `gisoo.importExternalChats`),
+  and a copy opens as a new Gisoo chat; the original chat is never changed. Only your messages and
+  the replies are read: tool calls, reasoning, injected context and attached file contents are left out.
 
 ## [1.0.2] - 2026-11-16
 

@@ -1,0 +1,9 @@
+{"kind":0,"v":{"version":3,"creationDate":1786278247311,"sessionId":"11111111-aaaa-4aaa-8aaa-111111111111","requests":[],"inputState":{}}}
+{"kind":2,"k":["requests"],"v":[{"requestId":"r1","timestamp":1786278250000,"message":{"text":"Add a retry to the upload helper","parts":[]},"response":[],"variableData":{}}]}
+{"kind":1,"k":["requests",0,"result"],"v":{"metadata":{"renderedUserMessage":[{"type":1,"text":"<context>injected reminder, never shown</context>"}]}}}
+{"kind":2,"k":["requests",0,"response"],"v":[{"kind":"mcpServersStarting","didStartServerIds":[]},{"kind":"thinking","value":"secret reasoning","id":"x"},{"value":"I will wrap the call in ","supportThemeIcons":false}]}
+{"kind":2,"k":["requests",0,"response"],"v":[{"kind":"toolInvocationSerialized","invocationMessage":"Reading file","toolId":"copilot_readFile"},{"value":"a loop that retries three times, in "},{"kind":"inlineReference","inlineReference":{"fsPath":"/work/demo/src/upload.ts","name":"upload.ts"}}]}
+{"kind":1,"k":["requests",0,"modelState"],"v":{"value":1,"completedAt":1786278260000}}
+{"kind":2,"k":["requests"],"v":[{"requestId":"r2","timestamp":1786278300000,"message":{"text":"Now add a test","parts":[]},"response":[{"value":"Done, see `upload.test.ts`."}]}]}
+this line is not json {{{
+{"kind":1,"k":["customTitle"],"v":"Upload retry"}

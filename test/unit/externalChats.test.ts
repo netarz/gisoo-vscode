@@ -123,7 +123,7 @@ describe('external chats', () => {
 
   describe('ExternalChats', () => {
     it('lists both sources newest first and reads only listed ids', async () => {
-      const chats = new ExternalChats({ home, env: { CLAUDE_CONFIG_DIR: claudeDir, CODEX_HOME: codexDir } });
+      const chats = new ExternalChats({ home, platform: 'linux', env: { CLAUDE_CONFIG_DIR: claudeDir, CODEX_HOME: codexDir, XDG_CONFIG_HOME: path.join(home, 'no-config'), GEMINI_CLI_HOME: path.join(home, 'no-gemini') } });
       assert.equal(await chats.read('codex', CODEX_X), undefined);
       const items = await chats.list([WORKSPACE]);
       assert.equal(items.length, 3);

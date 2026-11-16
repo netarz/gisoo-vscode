@@ -1,0 +1,21 @@
+{
+ "sessionId": "bbbb2222",
+ "projectHash": "111b1182b4b056ca80f7335964bf62c7940d4990fccce4f5b91db3170297fb04",
+ "startTime": "2026-11-05T09:00:00.000Z",
+ "lastUpdated": "2026-11-05T09:10:00.000Z",
+ "messages": [
+  {
+   "id": "n1",
+   "timestamp": "2026-11-06T09:00:01.000Z",
+   "type": "user",
+   "content": "First prompt"
+  },
+  {
+   "id": "n2",
+   "timestamp": "2026-11-06T09:00:05.000Z",
+   "type": "gemini",
+   "content": "First answer"
+  }
+ ],
+ "summary": "Licence question"
+}

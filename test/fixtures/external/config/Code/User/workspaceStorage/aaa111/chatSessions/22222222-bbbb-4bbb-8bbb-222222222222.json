@@ -1,0 +1,25 @@
+{
+ "version": 3,
+ "sessionId": "22222222-bbbb-4bbb-8bbb-222222222222",
+ "creationDate": 1786000000000,
+ "requests": [
+  {
+   "timestamp": 1786000001000,
+   "message": {
+    "text": "Explain the build script"
+   },
+   "response": [
+    {
+     "kind": "markdownContent",
+     "content": {
+      "value": "It runs esbuild."
+     }
+    },
+    {
+     "kind": "textEditGroup",
+     "edits": []
+    }
+   ]
+  }
+ ]
+}
