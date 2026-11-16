@@ -28,6 +28,10 @@ export const en = {
   'sessions.minutesAgo': '{n} min ago',
   'sessions.hoursAgo': '{n} h ago',
   'sessions.daysAgo': '{n} d ago',
+  'sessions.external.group': 'From {name}',
+  'sessions.external.loading': 'Looking for chats from other AI tools in this folder...',
+  'sessions.external.hint': 'Continue in Gisoo. A copy opens here; the original chat is not changed.',
+  'sessions.external.imported': 'continued in Gisoo',
 
   // Model picker
   'models.title': 'Choose a model',

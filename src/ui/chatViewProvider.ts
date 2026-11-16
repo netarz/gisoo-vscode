@@ -47,7 +47,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
   const m = raw as Record<string, unknown>;
   if (!str(m.type)) return undefined;
   switch (m.type) {
-    case 'ready': case 'stop': case 'retry': case 'session.new': case 'session.list': case 'models.refresh':
+    case 'ready': case 'stop': case 'retry': case 'session.new': case 'session.list': case 'external.list': case 'models.refresh':
     case 'attach.activeFile': case 'attach.selection': case 'account.refresh': case 'auth.signIn':
     case 'auth.apiKey': case 'auth.enterCode': case 'auth.signOut': case 'auth.cancel': case 'auth.copyLink': case 'auth.openLink': case 'plan.start': case 'memory.open':
     case 'context.reload': case 'tab.open': case 'location.choose':
@@ -61,6 +61,8 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
     case 'queue.remove': case 'session.open': case 'session.delete': case 'model.set': case 'agent.stop':
     case 'agent.open': case 'agent.retry':
       return str(m.id) ? (raw as WebviewToHost) : undefined;
+    case 'external.import':
+      return (m.source === 'claude-code' || m.source === 'codex') && str(m.id) && m.id.length <= 200 ? (raw as WebviewToHost) : undefined;
     case 'mode.set':
       return m.mode === 'ask' || m.mode === 'autoEdit' || m.mode === 'plan' || m.mode === 'bypass' ? (raw as WebviewToHost) : undefined;
     case 'approval':

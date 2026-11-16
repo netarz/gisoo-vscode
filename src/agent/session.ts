@@ -16,6 +16,8 @@ export interface SessionData {
   costUsd: number;
   /** Session-level "Always allow" command words. */
   allowedCommands: string[];
+  /** `source:id` of the chat in another tool this session was imported from. */
+  origin?: string;
 }
 
 export function newId(prefix = 's'): string {

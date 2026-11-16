@@ -219,6 +219,8 @@ export interface SessionSummary {
   title: string;
   updatedAt: number;
   turnCount: number;
+  /** `source:id` when the chat was imported from another tool. */
+  origin?: string;
 }
 
 /** Another AI coding tool whose chats for this folder can be continued in Gisoo. */
@@ -287,6 +289,10 @@ export type WebviewToHost =
   | { type: 'session.open'; id: string }
   | { type: 'session.delete'; id: string }
   | { type: 'session.list' }
+  /** List chats from other AI tools for this folder (sent when the history panel opens). */
+  | { type: 'external.list' }
+  /** Copy a chat from another tool into a new Gisoo chat (or reopen the earlier copy) and open it. */
+  | { type: 'external.import'; source: ExternalSource; id: string }
   /** Open a new chat in an editor tab. */
   | { type: 'tab.open' }
   /** Choose where the side-panel chat lives. */
@@ -335,6 +341,8 @@ export type HostToWebview =
   /** Replace the whole session (load, switch, after compaction, after restore). */
   | { type: 'session'; session: SessionView }
   | { type: 'sessions'; items: SessionSummary[] }
+  /** Chats from other AI tools for this folder. `enabled: false` when the setting turns them off. */
+  | { type: 'externalSessions'; items: ExternalSessionSummary[]; loading: boolean; enabled: boolean }
   | { type: 'account'; account: AccountInfo }
   | { type: 'models'; models: ModelInfo[]; current: string }
   | { type: 'mode'; mode: PermissionMode }
