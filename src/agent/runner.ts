@@ -1741,7 +1741,7 @@ export class SessionController implements vscode.Disposable {
       return;
     }
     this.post({ type: 'externalSessions', items: [], loading: true, enabled: true });
-    let found: ExternalSession[] = [];
+    let found: ExternalSession[];
     try {
       found = await externalChats().list(roots);
     } catch {

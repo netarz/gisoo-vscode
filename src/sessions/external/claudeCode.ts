@@ -128,7 +128,7 @@ export async function listClaudeSessions(configDir: string, workspace: string, o
   const limit = options.limit ?? 50;
   const files: Array<{ file: string; mtime: number }> = [];
   for (const dir of await claudeProjectDirs(configDir, workspace)) {
-    let names: string[] = [];
+    let names: string[];
     try {
       names = await fs.readdir(dir);
     } catch {

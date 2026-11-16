@@ -1,0 +1,5 @@
+{"type":"user","cwd":"/work/demo","message":{"role":"user","content":"<command-name>/init</command-name>\n<command-args></command-args>"}}
+{"type":"user","cwd":"/work/demo","message":{"role":"user","content":"<system-reminder>only a reminder</system-reminder>"}}
+{"type":"user","cwd":"/work/demo","timestamp":"2026-11-02T09:00:00.000Z","message":{"role":"user","content":"Add a dark mode toggle"}}
+{"type":"assistant","cwd":"/work/demo","timestamp":"2026-11-02T09:00:10.000Z","message":{"role":"assistant","content":"Done, the toggle is in the header."}}
+{"type":"summary","summary":"Dark mode toggle added"}

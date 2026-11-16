@@ -1,0 +1,2 @@
+{"type":"session_meta","payload":{"id":"0191cccc-0000-7000-8000-000000000003","cwd":"/work/demo","source":"cli"}}
+{"type":"response_item","timestamp":"2026-11-03T08:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>only injected text</environment_context>"}]}}

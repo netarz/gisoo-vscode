@@ -43,7 +43,7 @@ function decodeJsonString(raw: string): string | undefined {
 /** Reads the cwd from the head of a rollout without parsing its (large) first line. */
 export async function readCodexMeta(file: string): Promise<CodexMeta> {
   const handle = await fs.open(file, 'r');
-  let head = '';
+  let head: string;
   try {
     const buffer = Buffer.alloc(META_HEAD_BYTES);
     const { bytesRead } = await handle.read(buffer, 0, META_HEAD_BYTES, 0);
@@ -94,7 +94,7 @@ export async function codexRollouts(home: string): Promise<string[]> {
     for (const month of await sortedDirs(path.join(root, year))) {
       for (const day of await sortedDirs(path.join(root, year, month))) {
         const dir = path.join(root, year, month, day);
-        let names: string[] = [];
+        let names: string[];
         try {
           names = await fs.readdir(dir);
         } catch {
