@@ -2,7 +2,7 @@
   "name": "gisoo-vscode",
   "displayName": "Gisoo — AI Coding Agent",
   "description": "An agentic coding assistant for VS Code, powered by Gisoo: plans, reads your code, edits with diffs you approve, runs commands, and shows your credit.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "gisoo",
   "license": "MIT",
   "author": {
