@@ -214,10 +214,16 @@ function showSignedIn(info: AccountInfo): void {
 
 async function signInWithBrowser(auth: AuthService): Promise<void> {
   const pending = auth.signInWithBrowser();
-  void vscode.window.showInformationMessage(t('host.signIn.browserOpened'), t('host.signIn.enterCode')).then((choice) => {
-    if (choice) void vscode.commands.executeCommand('gisoo.enterCode');
-  });
-  showSignedIn(await pending);
+  // The sign-in card in the panel has the code box; bring it into view.
+  void vscode.commands.executeCommand('gisoo.chat.focus').then(undefined, () => undefined);
+  void vscode.window.showInformationMessage(t('host.signIn.browserOpened'));
+  try {
+    showSignedIn(await pending);
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error);
+    if (text === t('host.auth.cancelled') || text === t('host.auth.superseded')) return;
+    void vscode.window.showErrorMessage(text);
+  }
 }
 
 async function signInWithKey(auth: AuthService): Promise<void> {

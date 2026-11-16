@@ -46,9 +46,11 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
   switch (m.type) {
     case 'ready': case 'stop': case 'retry': case 'session.new': case 'session.list': case 'models.refresh':
     case 'attach.activeFile': case 'attach.selection': case 'account.refresh': case 'auth.signIn':
-    case 'auth.apiKey': case 'auth.enterCode': case 'auth.signOut': case 'plan.start': case 'memory.open':
+    case 'auth.apiKey': case 'auth.enterCode': case 'auth.signOut': case 'auth.cancel': case 'auth.copyLink': case 'auth.openLink': case 'plan.start': case 'memory.open':
     case 'context.reload':
       return raw as WebviewToHost;
+    case 'auth.submitCode':
+      return str(m.code) && m.code.length <= 2000 ? (raw as WebviewToHost) : undefined;
     case 'send':
       return str(m.text) && Array.isArray(m.attachments) ? (raw as WebviewToHost) : undefined;
     case 'queue.edit':
@@ -57,7 +59,7 @@ export function parseWebviewMessage(raw: unknown): WebviewToHost | undefined {
     case 'agent.open': case 'agent.retry':
       return str(m.id) ? (raw as WebviewToHost) : undefined;
     case 'mode.set':
-      return m.mode === 'ask' || m.mode === 'autoEdit' || m.mode === 'plan' ? (raw as WebviewToHost) : undefined;
+      return m.mode === 'ask' || m.mode === 'autoEdit' || m.mode === 'plan' || m.mode === 'bypass' ? (raw as WebviewToHost) : undefined;
     case 'approval':
       return str(m.callId) && (m.decision === 'accept' || m.decision === 'reject' || m.decision === 'always') ? (raw as WebviewToHost) : undefined;
     case 'answer':
@@ -216,6 +218,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       case 'auth.signIn':
         await this.signIn(() => this.auth.signInWithBrowser());
         return true;
+      case 'auth.submitCode':
+        // The card shows the error itself (account.signInError); no toast on top of it.
+        try {
+          const info = await this.auth.completeWithCode(msg.code);
+          this.post({ type: 'toast', level: 'info', text: info.balanceDisplay ? t('host.signedInWithBalance', info.balanceDisplay) : t('host.signedIn') });
+        } catch {
+          /* shown on the card */
+        }
+        return true;
+      case 'auth.copyLink': {
+        const copied = await this.auth.copySignInLink();
+        this.post({ type: 'toast', level: copied ? 'info' : 'warning', text: t(copied ? 'host.auth.linkCopied' : 'host.auth.noPending') });
+        return true;
+      }
+      case 'auth.openLink':
+        // Same page, same sign-in: a new PKCE pair would make a code from the old page useless.
+        if (!(await this.auth.reopenSignInPage())) await this.signIn(() => this.auth.signInWithBrowser());
+        return true;
+      case 'auth.cancel':
+        await this.auth.cancelSignIn();
+        return true;
       case 'auth.apiKey':
         await vscode.commands.executeCommand('gisoo.signInWithKey');
         return true;
@@ -262,7 +285,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       const info = await run();
       this.post({ type: 'toast', level: 'info', text: info.balanceDisplay ? t('host.signedInWithBalance', info.balanceDisplay) : t('host.signedIn') });
     } catch (error) {
-      this.post({ type: 'toast', level: 'error', text: error instanceof Error ? error.message : String(error) });
+      const text = error instanceof Error ? error.message : String(error);
+      // Cancelling or restarting a sign-in is the user's own action, not an error worth a toast.
+      if (text === t('host.auth.cancelled') || text === t('host.auth.superseded')) return;
+      this.post({ type: 'toast', level: 'error', text });
     }
   }
 

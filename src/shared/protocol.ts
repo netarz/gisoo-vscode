@@ -10,7 +10,7 @@
 // Shared value types
 // ---------------------------------------------------------------------------
 
-export type PermissionMode = 'ask' | 'autoEdit' | 'plan';
+export type PermissionMode = 'ask' | 'autoEdit' | 'plan' | 'bypass';
 export type Region = 'global' | 'iran';
 export type UiLanguage = 'en' | 'fa';
 
@@ -45,6 +45,12 @@ export interface AccountInfo {
   region: Region;
   /** Set when the last /me call failed (offline, 401...). */
   error?: string;
+  /** A browser sign-in was started and its one-time code has not been redeemed yet. */
+  signInWaiting?: boolean;
+  /** The page of that sign-in, so it can be copied to another device (a phone). */
+  signInUrl?: string;
+  /** Why the last sign-in attempt failed, shown on the sign-in card. */
+  signInError?: string;
 }
 
 export interface Attachment {
@@ -280,6 +286,11 @@ export type WebviewToHost =
   | { type: 'auth.signIn' }
   | { type: 'auth.apiKey' }
   | { type: 'auth.enterCode' }
+  /** The one-time code pasted into the sign-in card. */
+  | { type: 'auth.submitCode'; code: string }
+  | { type: 'auth.cancel' }
+  | { type: 'auth.copyLink' }
+  | { type: 'auth.openLink' }
   | { type: 'auth.signOut' }
   | { type: 'link.open'; url: string }
   | { type: 'plan.start' }
@@ -350,5 +361,6 @@ export const Links = {
   keys: 'https://gisoo.pro/app/api/keys',
   page: 'https://gisoo.pro/vscode',
   docs: 'https://gisoo.pro/docs',
+  signup: 'https://gisoo.pro/login',
   repo: 'https://github.com/netarz/gisoo-vscode',
 } as const;

@@ -8,30 +8,57 @@ import type { MeResponse } from '../api/types';
 import type { AccountInfo } from '../shared/protocol';
 import { baseUrlFromSettings, getSettings } from '../config';
 import { isAcceptableBaseUrl, isGisooServerBase } from '../security';
-import { hostStr } from '../ui/strings';
-import { cleanApiKey, createPkce, parseCallback, type PkcePair } from './pkce';
+import { hostStr, type HostStringKey } from '../ui/strings';
+import { cleanApiKey, createPkce, extractSignInCode, parseCallback, type PkcePair } from './pkce';
 
 export const SECRET_KEY = 'gisoo.apiKey';
 const BASE_STATE_KEY = 'gisoo.resolvedBaseUrl';
-const BROWSER_TIMEOUT_MS = 5 * 60 * 1000;
+/** How long a started browser sign-in waits for its code. Matches the server's code lifetime. */
+const BROWSER_TIMEOUT_MS = 15 * 60 * 1000;
+/**
+ * The PKCE pair of a sign-in in progress. Kept in SecretStorage, not only in memory, so the code
+ * can still be redeemed after the window reloads, after the in-memory wait gave up, or in another
+ * window of the same editor (the browser hands the URI to whichever window was used last).
+ */
+const PENDING_SECRET = 'gisoo.pendingSignIn';
 const KEY_FORMAT = /^sk-(gisoo|ntz)-v1-[A-Za-z0-9_-]{8,}$/;
+
+/** What is kept between windows and reloads: the PKCE pair and the page it was started with. */
+interface StoredPending extends PkcePair {
+  url?: string;
+}
 
 interface Pending {
   pkce: PkcePair;
+  /** The sign-in page, so the panel can copy or reopen it without starting a new sign-in. */
+  url?: string;
   resolve: (info: AccountInfo) => void;
   reject: (error: Error) => void;
-  timer: NodeJS.Timeout;
+  /** Undefined for a pair restored from storage: nobody is awaiting it. */
+  timer: NodeJS.Timeout | undefined;
 }
+
 
 export class AuthService implements vscode.UriHandler, vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<AccountInfo>();
   readonly onDidChange = this.emitter.event;
   private pending: Pending | undefined;
   private last: AccountInfo;
+  private readonly subscriptions: vscode.Disposable[] = [];
 
   constructor(private readonly context: vscode.ExtensionContext, private readonly client: GisooClient) {
     this.last = { signedIn: false, baseUrl: client.baseUrl, region: getSettings().region };
     this.applyBase();
+    // Another window signed in, started a sign-in or signed out: follow it here too.
+    this.subscriptions.push(context.secrets.onDidChange((e) => {
+      if (e.key === SECRET_KEY) void this.refresh();
+      if (e.key === PENDING_SECRET) void this.syncWaiting();
+    }));
+    void this.syncWaiting();
+  }
+
+  private tr(key: HostStringKey, ...args: Array<string | number>): string {
+    return hostStr(getSettings().language, key, ...args);
   }
 
   /** Points the client at the saved or configured base URL. */
@@ -73,7 +100,7 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
   // -- Browser sign-in (PKCE) --------------------------------------------------------------------
 
   async signInWithBrowser(): Promise<AccountInfo> {
-    this.cancelPending(new Error('A newer sign-in was started.'));
+    this.cancelPending(new Error(this.tr('host.auth.superseded')));
     const pkce = createPkce();
     const publisher = (this.context.extension.packageJSON as { publisher?: string }).publisher ?? 'gisoo';
     const callback = vscode.Uri.parse(`${vscode.env.uriScheme}://${publisher}.gisoo-vscode/auth`);
@@ -89,67 +116,166 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
     });
     const url = `${host}/app/vscode/connect?${params.toString()}`;
 
+    await this.storePending(pkce, url);
     const done = new Promise<AccountInfo>((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pending?.pkce.state === pkce.state) this.pending = undefined;
-        reject(new Error('Sign-in timed out after 5 minutes. Please try again.'));
+        void this.clearPending().then(() => this.publishWaiting(false));
+        reject(new Error(this.tr('host.auth.timeout')));
       }, BROWSER_TIMEOUT_MS);
-      this.pending = { pkce, resolve, reject, timer };
+      this.pending = { pkce, url, resolve, reject, timer };
     });
-    const opened = await vscode.env.openExternal(vscode.Uri.parse(url));
-    if (!opened) this.cancelPending(new Error('Could not open the browser.'));
+    // Callers that do not await (the panel) must not see an unhandled rejection.
+    done.catch(() => undefined);
+    this.publishWaiting(true, url);
+    // `false` also means the user chose "Copy" in VS Code's link dialog to open the page somewhere
+    // else (another browser, a phone). The sign-in stays open either way: the panel keeps waiting
+    // for the code and offers the link again.
+    await vscode.env.openExternal(vscode.Uri.parse(url));
     return done;
+  }
+
+  /** The page of the sign-in in progress, if any. */
+  async signInUrl(): Promise<string | undefined> {
+    if (this.pending?.url) return this.pending.url;
+    return (await this.loadPending())?.url;
+  }
+
+  /** Copies the sign-in page to the clipboard. False when no sign-in is waiting. */
+  async copySignInLink(): Promise<boolean> {
+    const url = await this.signInUrl();
+    if (!url) return false;
+    await vscode.env.clipboard.writeText(url);
+    return true;
+  }
+
+  /** Opens the page of the sign-in in progress again, without starting a new one. */
+  async reopenSignInPage(): Promise<boolean> {
+    const url = await this.signInUrl();
+    if (!url) return false;
+    await vscode.env.openExternal(vscode.Uri.parse(url));
+    return true;
+  }
+
+  /** Abandons a sign-in in progress (the Cancel button on the panel). */
+  async cancelSignIn(): Promise<void> {
+    this.cancelPending(new Error(this.tr('host.auth.cancelled')));
+    await this.clearPending();
+    this.publishWaiting(false);
   }
 
   /** Called by VS Code when `<scheme>://<publisher>.gisoo-vscode/auth?code&state` is opened. */
   async handleUri(uri: vscode.Uri): Promise<void> {
     if (uri.path !== '/auth') return;
     const { code, state } = parseCallback(uri.query);
-    const pending = this.pending;
+    if (!code || !state) return;
+    const pending = await this.findPending(state);
     if (!pending) {
-      void vscode.window.showWarningMessage('Gisoo: no sign-in is waiting. Start again from the Gisoo panel.');
-      return;
-    }
-    if (!code || !state || state !== pending.pkce.state) {
       // Ignored rather than cancelled: any web page can open a vscode:// link, and a forged answer
       // must not be able to end the user's real sign-in.
-      void vscode.window.showWarningMessage(hostStr(getSettings().language, 'host.auth.foreignAnswer'));
+      const waiting = Boolean(this.pending) || Boolean(await this.loadPending());
+      void vscode.window.showWarningMessage(this.tr(waiting ? 'host.auth.foreignAnswer' : 'host.auth.noPending'));
       return;
     }
     try {
-      await this.exchange(pending, code);
-    } catch {
-      // The error already reached signInWithBrowser()'s caller through pending.reject.
+      const info = await this.exchange(pending, code);
+      void vscode.window.showInformationMessage(info.balanceDisplay ? this.tr('host.signedInWithBalance', info.balanceDisplay) : this.tr('host.signedIn'));
+    } catch (error) {
+      void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
     }
   }
 
-  /** For "Enter sign-in code": the code shown on the web page, when the editor did not open. */
-  async completeWithCode(code: string): Promise<AccountInfo> {
-    const pending = this.pending;
-    if (!pending) throw new Error('Start "Sign in with Gisoo" first, then paste the code from the web page.');
-    const clean = code.trim();
-    if (!/^[A-Za-z0-9_-]{6,200}$/.test(clean)) throw new Error('That code does not look right.');
-    return this.exchange(pending, clean);
+  /** The code shown on the web page, pasted into the panel or the "Enter sign-in code" box. */
+  async completeWithCode(input: string): Promise<AccountInfo> {
+    const code = extractSignInCode(input);
+    if (!code) throw this.fail(this.tr('host.auth.badCode'));
+    const pending = await this.findPending();
+    if (!pending) throw this.fail(this.tr('host.auth.noPending'));
+    return this.exchange(pending, code);
+  }
+
+  /**
+   * The sign-in a code belongs to: this window's live one, else the stored pair (another window, a
+   * reload, or after the in-memory wait ended). With `state`, only a matching pair is returned.
+   */
+  private async findPending(state?: string): Promise<Pending | undefined> {
+    if (this.pending && (!state || this.pending.pkce.state === state)) return this.pending;
+    const stored = await this.loadPending();
+    if (!stored || (state && stored.state !== state)) return undefined;
+    return { pkce: stored, url: stored.url, resolve: () => undefined, reject: () => undefined, timer: undefined };
+  }
+
+  private async storePending(pkce: PkcePair, url: string): Promise<void> {
+    const stored: StoredPending = { ...pkce, url };
+    await this.context.secrets.store(PENDING_SECRET, JSON.stringify(stored));
+  }
+
+  private async loadPending(): Promise<StoredPending | undefined> {
+    const raw = await this.context.secrets.get(PENDING_SECRET);
+    if (!raw) return undefined;
+    try {
+      const p = JSON.parse(raw) as StoredPending;
+      if (typeof p.state !== 'string' || typeof p.verifier !== 'string' || typeof p.createdAt !== 'number') return undefined;
+      if (p.url !== undefined && (typeof p.url !== 'string' || !p.url.startsWith('https://'))) p.url = undefined;
+      if (Date.now() - p.createdAt > BROWSER_TIMEOUT_MS) {
+        await this.clearPending();
+        return undefined;
+      }
+      return p;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async clearPending(): Promise<void> {
+    await this.context.secrets.delete(PENDING_SECRET);
+  }
+
+  private async syncWaiting(): Promise<void> {
+    const waiting = Boolean(this.pending) || Boolean(await this.loadPending());
+    const url = waiting ? await this.signInUrl() : undefined;
+    if (Boolean(this.last.signInWaiting) !== waiting || this.last.signInUrl !== url) this.publishWaiting(waiting, url);
+  }
+
+  private publishWaiting(waiting: boolean, url?: string): void {
+    this.publish({
+      ...this.last,
+      signInWaiting: waiting ? true : undefined,
+      signInUrl: waiting ? url : undefined,
+      signInError: undefined,
+    });
+  }
+
+  /** Puts the message on the sign-in card as well as returning it. */
+  private fail(message: string): Error {
+    this.publish({ ...this.last, signInError: message });
+    return new Error(message);
   }
 
   private async exchange(pending: Pending, code: string): Promise<AccountInfo> {
-    clearTimeout(pending.timer);
+    if (pending.timer) clearTimeout(pending.timer);
     if (this.pending === pending) this.pending = undefined;
     try {
       this.applyBase();
       const token = await this.client.exchangeToken(code, pending.pkce.verifier);
-      if (!token.api_key) throw new Error('The server did not return a key.');
+      if (!token.api_key) throw new Error(this.tr('host.auth.noKey'));
       await this.context.secrets.store(SECRET_KEY, token.api_key);
       const s = getSettings();
       if (token.base_url && isGisooServerBase(token.base_url) && s.region === 'global' && !s.baseUrl) {
         await this.context.globalState.update(BASE_STATE_KEY, token.base_url);
         this.client.setBaseUrl(token.base_url);
       }
+      // The code is spent: the stored pair would only produce invalid_grant from now on.
+      await this.clearPending();
       const info = await this.refresh();
       pending.resolve(info);
       return info;
     } catch (error) {
       const err = this.explain(error);
+      // A wrong code keeps the sign-in open (the user may have mistyped); only an expired pair ends it.
+      const waiting = Boolean(this.pending) || Boolean(await this.loadPending());
+      const url = waiting ? await this.signInUrl() : undefined;
+      this.publish({ ...this.last, signInWaiting: waiting ? true : undefined, signInUrl: url, signInError: err.message });
       pending.reject(err);
       throw err;
     }
@@ -157,7 +283,7 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
 
   private explain(error: unknown): Error {
     if (error instanceof GisooError && (error.apiCode === 'invalid_grant' || (error.status === 400 && /invalid_grant/i.test(error.message)))) {
-      return new Error('The sign-in code is invalid, already used or expired. Please start the sign-in again.');
+      return new Error(this.tr('host.auth.codeRejected'));
     }
     return error instanceof Error ? error : new Error(String(error));
   }
@@ -165,7 +291,7 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
   private cancelPending(reason: Error): void {
     const p = this.pending;
     if (!p) return;
-    clearTimeout(p.timer);
+    if (p.timer) clearTimeout(p.timer);
     this.pending = undefined;
     p.reject(reason);
   }
@@ -173,7 +299,8 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
   // -- Account -------------------------------------------------------------------------------------
 
   async signOut(): Promise<AccountInfo> {
-    this.cancelPending(new Error('Signed out.'));
+    this.cancelPending(new Error(this.tr('host.auth.cancelled')));
+    await this.clearPending();
     await this.context.secrets.delete(SECRET_KEY);
     await this.context.globalState.update(BASE_STATE_KEY, undefined);
     this.applyBase();
@@ -221,13 +348,16 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
   }
 
   private publish(info: AccountInfo): AccountInfo {
+    // A signed-in account is never waiting for a sign-in and carries no sign-in error.
+    if (info.signedIn && !info.error) info = { ...info, signInWaiting: undefined, signInUrl: undefined, signInError: undefined };
     this.last = info;
     this.emitter.fire(info);
     return info;
   }
 
   dispose(): void {
-    this.cancelPending(new Error('Extension deactivated.'));
+    this.cancelPending(new Error(this.tr('host.auth.cancelled')));
+    for (const d of this.subscriptions) d.dispose();
     this.emitter.dispose();
   }
 }

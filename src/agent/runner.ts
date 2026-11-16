@@ -366,6 +366,10 @@ export class SessionController implements vscode.Disposable {
         await this.loadModels(true);
         return true;
       case 'mode.set':
+        if (msg.mode === 'bypass' && this.session.mode !== 'bypass' && !(await this.confirmBypass())) {
+          this.post({ type: 'mode', mode: this.session.mode });
+          return true;
+        }
         this.setMode(msg.mode);
         return true;
       case 'approval':
@@ -1653,6 +1657,17 @@ export class SessionController implements vscode.Disposable {
       // settings may be read-only here
     }
     await this.persist(this.session);
+  }
+
+  /** Bypass is chosen on purpose: one modal per window says what it allows. */
+  private bypassConfirmed = false;
+
+  private async confirmBypass(): Promise<boolean> {
+    if (this.bypassConfirmed) return true;
+    const yes = this.t('notice.bypassYes');
+    const pick = await vscode.window.showWarningMessage(this.t('notice.bypassConfirm'), { modal: true, detail: this.t('notice.bypassDetail') }, yes);
+    this.bypassConfirmed = pick === yes;
+    return this.bypassConfirmed;
   }
 
   private setMode(mode: PermissionMode): void {

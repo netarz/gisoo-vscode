@@ -167,3 +167,23 @@ describe('skills: .agents/skills from the repository root down (SPEC-phase2 §7)
     assert.equal(await findRepoRoot(path.resolve('/elsewhere'), exists), undefined);
   });
 });
+
+describe('permissions: bypass mode', () => {
+  const settings: PermissionSettings = { mode: 'bypass', allowedCommands: [] };
+
+  it('allows edits and ordinary commands without asking', () => {
+    assert.equal(decide('edit', settings), 'allow');
+    assert.equal(decide('command', settings, 'npm install && npm run build'), 'allow');
+    assert.equal(decide('command', settings, 'node script.js > out.txt'), 'allow');
+  });
+
+  it('still asks for irreversible commands', () => {
+    for (const cmd of ['rm -rf /', 'git push --force origin main', 'sudo apt install x', 'npm publish', 'git reset --hard HEAD~3']) {
+      assert.equal(decide('command', settings, cmd), 'ask', cmd);
+    }
+  });
+
+  it('never runs an empty command', () => {
+    assert.equal(decide('command', settings, '   '), 'deny');
+  });
+});

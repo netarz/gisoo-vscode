@@ -16,10 +16,11 @@ type Popover =
   | { kind: 'commands'; query: string; items: SlashCommandInfo[]; index: number }
   | { kind: 'mode'; index: number };
 
-const modes: { id: PermissionMode; icon: string; label: 'input.mode.ask' | 'input.mode.autoEdit' | 'input.mode.plan'; desc: 'input.mode.ask.desc' | 'input.mode.autoEdit.desc' | 'input.mode.plan.desc' }[] = [
+const modes: { id: PermissionMode; icon: string; label: `input.mode.${PermissionMode}`; desc: `input.mode.${PermissionMode}.desc` }[] = [
   { id: 'ask', icon: 'shield', label: 'input.mode.ask', desc: 'input.mode.ask.desc' },
   { id: 'autoEdit', icon: 'zap', label: 'input.mode.autoEdit', desc: 'input.mode.autoEdit.desc' },
   { id: 'plan', icon: 'map', label: 'input.mode.plan', desc: 'input.mode.plan.desc' },
+  { id: 'bypass', icon: 'unlock', label: 'input.mode.bypass', desc: 'input.mode.bypass.desc' },
 ];
 
 function PopoverRow({ active, onPick, onHover, children, id }: { active: boolean; onPick: () => void; onHover: () => void; children: JSX.Element | JSX.Element[]; id: string }): JSX.Element {
@@ -346,7 +347,7 @@ export function InputBar({ starter }: { starter?: { text: string; seq: number } 
         <IconButton icon="selection" label={t('input.attachSelection')} onClick={() => post({ type: 'attach.selection' })} />
         <button
           type="button"
-          class="mode-btn"
+          class={`mode-btn mode-${session.mode}`}
           title={`${t('input.mode')}: ${t(currentMode.label)} – ${t(currentMode.desc)}`}
           aria-label={`${t('input.mode')}: ${t(currentMode.label)}`}
           aria-expanded={popover?.kind === 'mode'}

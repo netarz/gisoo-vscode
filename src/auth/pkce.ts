@@ -62,3 +62,20 @@ export function cleanApiKey(input: string): string | undefined {
   const key = input.trim().replace(/^bearer\s+/i, '');
   return /^sk-[A-Za-z0-9_-]{8,}$/.test(key) ? key : undefined;
 }
+
+/** Pulls the one-time code out of whatever was pasted: the code itself or the whole callback URL. */
+export function extractSignInCode(input: string): string | undefined {
+  const text = input.trim();
+  if (!text) return undefined;
+  const fromUrl = /[?&]code=([^&#\s]+)/.exec(text);
+  let raw = text;
+  if (fromUrl) {
+    try {
+      raw = decodeURIComponent(fromUrl[1]);
+    } catch {
+      raw = fromUrl[1];
+    }
+  }
+  const clean = raw.replace(/\s+/g, '');
+  return /^[A-Za-z0-9_-]{6,200}$/.test(clean) ? clean : undefined;
+}

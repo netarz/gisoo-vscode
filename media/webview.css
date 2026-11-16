@@ -300,6 +300,29 @@ code, pre, .mono { font-family: var(--vscode-editor-font-family, monospace); }
 .signin-actions .btn { width: 100%; }
 .signin-docs { margin-block-start: 6px; font-size: 0.92em; }
 
+.signin-code { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-block-start: 8px; }
+.code-row { display: flex; gap: 6px; }
+.code-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-input-border, var(--gs-border));
+  border-radius: 2px;
+  outline: 0;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  letter-spacing: 0.06em;
+}
+.code-input:focus { border-color: var(--vscode-focusBorder); }
+.code-input.has-error { border-color: var(--vscode-inputValidation-errorBorder, var(--gs-bad)); }
+.code-input::placeholder { color: var(--vscode-input-placeholderForeground); }
+.signin-error { margin: 0; color: var(--vscode-errorForeground, var(--gs-bad)); font-size: 0.92em; text-align: start; }
+.signin-links { display: flex; justify-content: center; gap: 8px; font-size: 0.92em; color: var(--vscode-descriptionForeground); }
+
+.gisoo-mark { display: block; flex: none; }
+.signin-logo { color: var(--gs-gold); margin-block-end: 6px; }
+
 /* ------------------------------------------------------------------- turns */
 
 .turn { min-width: 0; }
@@ -406,11 +429,40 @@ code, pre, .mono { font-family: var(--vscode-editor-font-family, monospace); }
 }
 
 .working {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  font-size: 0.92em;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--vscode-descriptionForeground);
 }
+
+/* The Gisoo mark as the loader: blades light up clockwise, the centre breathes, the whole turns slowly. */
+.gisoo-loader { display: block; flex: none; color: var(--gs-gold); animation: gs-loader-turn 6s linear infinite; }
+.gisoo-loader .gl-blade { opacity: 0.28; animation: gs-loader-blade 1.2s ease-in-out infinite; }
+.gisoo-loader .gl-blade-2 { animation-delay: 0.3s; }
+.gisoo-loader .gl-blade-3 { animation-delay: 0.6s; }
+.gisoo-loader .gl-blade-4 { animation-delay: 0.9s; }
+.gisoo-loader .gl-core { transform-box: fill-box; transform-origin: center; animation: gs-loader-core 1.2s ease-in-out infinite; }
+@keyframes gs-loader-blade { 0%, 100% { opacity: 0.28; } 25% { opacity: 1; } }
+@keyframes gs-loader-core { 0%, 100% { transform: scale(0.8); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
+@keyframes gs-loader-turn { to { transform: rotate(360deg); } }
+.working-verb {
+  background: linear-gradient(90deg, var(--vscode-descriptionForeground) 0%, var(--vscode-descriptionForeground) 40%, var(--gs-gold) 50%, var(--vscode-descriptionForeground) 60%, var(--vscode-descriptionForeground) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gs-loader-shimmer 2.4s linear infinite;
+}
+@keyframes gs-loader-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+.working-verb { font-weight: 500; }
+.working-meta { font-size: 0.9em; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.working-key { color: var(--vscode-foreground); opacity: 0.75; }
+.working-slow { flex-basis: 100%; padding-inline-start: 24px; font-size: 0.9em; color: var(--vscode-editorWarning-foreground, var(--gs-gold)); }
+.working.is-waiting .gisoo-loader { animation-play-state: paused; }
+.working.is-waiting .working-verb { animation: none; background: none; color: var(--vscode-editorWarning-foreground, var(--gs-gold)); }
 
 .notice {
   display: flex;
@@ -776,6 +828,7 @@ li.todo-in_progress { font-weight: 600; }
   font-size: 0.92em;
 }
 .mode-btn:hover { background: var(--gs-hover); color: var(--vscode-foreground); }
+.mode-btn.mode-bypass, .mode-btn.mode-bypass:hover { color: var(--vscode-editorWarning-foreground, var(--gs-gold)); }
 .mode-btn .codicon { font-size: 14px; }
 .input-meta {
   display: inline-flex;
@@ -1173,6 +1226,10 @@ body.vscode-high-contrast a { text-decoration: underline; }
   .is-streaming .turn-body > .md:last-child > :last-child::after,
   .is-streaming .turn-body > .md:last-child:empty::after { animation: none; }
   .codicon-modifier-spin { animation-duration: 4s; }
+  .gisoo-loader { animation: none; }
+  .gisoo-loader .gl-blade { animation-duration: 2.4s; }
+  .gisoo-loader .gl-core, .working-verb { animation: none; }
+  .working-verb { color: var(--vscode-descriptionForeground); background: none; }
   .popover, .overlay-panel, .toast { animation: none; }
   .todo-bar-fill { transition: none; }
 }

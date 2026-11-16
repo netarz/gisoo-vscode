@@ -2,7 +2,7 @@
   "name": "gisoo-vscode",
   "displayName": "Gisoo — AI Coding Agent",
   "description": "An agentic coding assistant for VS Code, powered by Gisoo: plans, reads your code, edits with diffs you approve, runs commands, and shows your credit.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "gisoo",
   "license": "MIT",
   "author": {
@@ -333,12 +333,14 @@
           "enum": [
             "ask",
             "autoEdit",
-            "plan"
+            "plan",
+            "bypass"
           ],
           "enumDescriptions": [
             "%config.permissionMode.ask%",
             "%config.permissionMode.autoEdit%",
-            "%config.permissionMode.plan%"
+            "%config.permissionMode.plan%",
+            "%config.permissionMode.bypass%"
           ],
           "default": "ask",
           "description": "%config.permissionMode%",

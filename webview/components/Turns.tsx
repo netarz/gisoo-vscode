@@ -16,6 +16,7 @@ import { post } from '../vscode';
 import { Button, Icon, IconButton } from './common';
 import { Markdown } from './Markdown';
 import { ToolCard } from './ToolCard';
+import { WorkingLine } from './WorkingLine';
 
 // ---------------------------------------------------------------------------
 // Attachments
@@ -180,9 +181,7 @@ export const AssistantTurn = memo(function AssistantTurn({ turn, isLast, running
               return null;
           }
         })}
-        {turn.streaming && (parts.length === 0 || parts[lastIndex].kind === 'tool') ? (
-          <div class="working"><Icon name="loading" spin /><span>{t('turn.working')}</span></div>
-        ) : null}
+        {turn.streaming ? <WorkingLine turn={turn} /> : null}
       </div>
       {!turn.streaming ? <TurnFooter turn={turn} showCost={showCost} /> : null}
     </div>

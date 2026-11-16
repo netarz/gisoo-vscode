@@ -32,6 +32,7 @@
   "config.permissionMode.ask": "Every edit and command waits for your approval.",
   "config.permissionMode.autoEdit": "Edits are applied directly; commands still ask.",
   "config.permissionMode.plan": "Read-only: Gisoo writes a plan and stops.",
+  "config.permissionMode.bypass": "Edits and commands run without asking; only irreversible commands still ask. Use only in a project you can restore.",
   "config.maxCostPerTask": "Stop a run when its estimated cost (in US dollars) reaches this amount. 0 means no limit.",
   "config.showCost": "Show the estimated cost of each turn and the balance in the status bar.",
   "config.language": "Language of the Gisoo chat interface.",

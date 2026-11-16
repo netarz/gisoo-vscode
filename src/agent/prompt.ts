@@ -54,6 +54,8 @@ export function buildSystemPrompt(opts: PromptOptions): string {
         'explain it briefly in your reply. Do not edit files or run commands; stop after presenting the plan.',
       ].join('\n'),
     );
+  } else if (opts.mode === 'bypass') {
+    sections.push('## Mode\nBypass: edits and commands run without asking the user (irreversible commands still ask). Work carefully: prefer small, reversible steps and never run destructive commands the task does not need.');
   } else if (opts.mode === 'autoEdit') {
     sections.push('## Mode\nEdits are applied without asking; commands still need approval. Keep edits small and reviewable.');
   }

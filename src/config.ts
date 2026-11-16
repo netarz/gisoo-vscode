@@ -54,7 +54,7 @@ export function getSettings(): GisooSettings {
     region,
     baseUrl: typeof rawBase === 'string' ? rawBase.trim() : '',
     model: c.get<string>('model') ?? '',
-    permissionMode: mode === 'autoEdit' || mode === 'plan' ? mode : 'ask',
+    permissionMode: mode === 'autoEdit' || mode === 'plan' || mode === 'bypass' ? mode : 'ask',
     maxCostPerTask: Math.max(0, finite(userSetting<number>('maxCostPerTask'), 0)),
     subagentModel: c.get<string>('subagentModel') ?? '',
     maxParallelAgents: Math.min(8, Math.max(1, finite(userSetting<number>('agents.maxParallel'), 3))),

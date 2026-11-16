@@ -81,10 +81,12 @@ export function hasShellControl(command: string): boolean {
 export function decide(permission: ToolPermission, settings: PermissionSettings, command?: string): Decision {
   if (permission === 'none' || permission === 'read') return 'allow';
   if (settings.mode === 'plan') return 'deny';
-  if (permission === 'edit') return settings.mode === 'autoEdit' ? 'allow' : 'ask';
+  if (permission === 'edit') return settings.mode === 'autoEdit' || settings.mode === 'bypass' ? 'allow' : 'ask';
   // command
   const cmd = command ?? '';
   if (!cmd.trim()) return 'deny';
+  // Bypass runs every command without asking, except the irreversible ones (rm -rf /, force push, sudo, publish...).
+  if (settings.mode === 'bypass') return isDangerousCommand(cmd) ? 'ask' : 'allow';
   if (isDangerousCommand(cmd) || hasShellControl(cmd)) return 'ask';
   const allowed = [...settings.allowedCommands, ...(settings.sessionAllowed ?? [])];
   const parts = splitCommandChain(cmd);
