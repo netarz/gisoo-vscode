@@ -45,12 +45,18 @@ export interface ToolFlags {
   readOnly?: boolean;
   /** Always goes through the approval card, whatever the permission mode. Defaults from tool.permission. */
   needsApproval?: boolean;
+  /**
+   * Asked every time the tool list is built; false hides the tool from this run. Hosts use it for tools
+   * that exist only for some workspaces (e.g. one project's MCP servers in a multi-project host).
+   */
+  available?: () => boolean;
 }
 
 export interface RegisteredTool {
   tool: Tool;
   readOnly: boolean;
   needsApproval: boolean;
+  available?: () => boolean;
 }
 
 export interface ToolVisibility {
@@ -97,6 +103,7 @@ export function registerTool(tool: Tool, flags: ToolFlags = {}): () => void {
     tool,
     readOnly: flags.readOnly ?? tool.readOnly,
     needsApproval: flags.needsApproval ?? defaultNeedsApproval(tool),
+    available: flags.available,
   };
   registry.set(tool.name, entry);
   for (const l of listeners) l();
@@ -136,10 +143,19 @@ export function visibleTools(v: ToolVisibility): RegisteredTool[] {
   return allTools().filter((entry) => {
     const { tool } = entry;
     if (tool.name === 'web_fetch' && !v.webFetchEnabled) return false;
+    if (entry.available && !safeAvailable(entry.available)) return false;
     if (!v.workspaceTrusted && !availableUntrusted(tool)) return false;
     if (v.mode === 'plan') return entry.readOnly || tool.permission === 'none';
     return true;
   });
+}
+
+function safeAvailable(available: () => boolean): boolean {
+  try {
+    return available();
+  } catch {
+    return false;
+  }
 }
 
 export function toolDefinitions(v: ToolVisibility) {

@@ -113,7 +113,8 @@ export class AuthService implements vscode.UriHandler, vscode.Disposable {
       challenge: pkce.challenge,
       redirect,
       region,
-      client: 'vscode',
+      // The consent page names the app that asks: Gisoo Desktop runs this same code under its own scheme.
+      client: vscode.env.uriScheme === 'gisoo-desktop' ? 'desktop' : 'vscode',
     });
     const url = `${host}/app/vscode/connect?${params.toString()}`;
 
