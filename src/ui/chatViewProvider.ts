@@ -195,6 +195,9 @@ export class ChatHost implements vscode.Disposable {
   readonly onDidInteract = this.interacted.event;
   /** Where voice input answers this chat (one stable function per host). */
   private readonly voiceSink = (message: HostToWebview): boolean => this.post(message);
+  /** True once a loaded webview has said `ready` and received its `init`. */
+  private ready = false;
+  private readyWaiters: Array<() => void> = [];
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -211,6 +214,7 @@ export class ChatHost implements vscode.Disposable {
     webview.options = { enableScripts: true, localResourceRoots: [mediaRoot] };
     webview.html = this.html(webview, mediaRoot);
     this.webviews.add(webview);
+    this.ready = false; // the new page announces itself with `ready`
     const sub = webview.onDidReceiveMessage((raw: unknown) => {
       this.interacted.fire();
       void this.onMessage(raw);
@@ -218,6 +222,7 @@ export class ChatHost implements vscode.Disposable {
     return { dispose: () => {
       sub.dispose();
       this.webviews.delete(webview);
+      if (!this.webviews.size) this.ready = false;
     } };
   }
 
@@ -238,6 +243,37 @@ export class ChatHost implements vscode.Disposable {
 
   async reveal(): Promise<void> {
     await this.revealChat();
+  }
+
+  private markReady(): void {
+    this.ready = true;
+    for (const done of this.readyWaiters.splice(0)) done();
+  }
+
+  /** Resolves true once the webview can take messages, false when it did not load in time. */
+  private whenReady(timeoutMs: number): Promise<boolean> {
+    if (this.ready) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const done = (): void => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      const timer = setTimeout(() => {
+        this.readyWaiters = this.readyWaiters.filter((w) => w !== done);
+        resolve(false);
+      }, timeoutMs);
+      this.readyWaiters.push(done);
+    });
+  }
+
+  /**
+   * Shows the chat and sends a message as if the user had typed it (quick actions: lightbulb,
+   * selection menu, terminal, change review). Waits for a chat that is still loading.
+   */
+  async submit(text: string, attachments?: Attachment[]): Promise<boolean> {
+    await this.revealChat();
+    if (!(await this.whenReady(8000))) return false;
+    return this.post({ type: 'prefill', text, send: true, attachments });
   }
 
   /** Shows the chat and delivers an attachment (used by the "attach" commands). */
@@ -284,6 +320,7 @@ export class ChatHost implements vscode.Disposable {
     try {
       if (await this.handleHere(msg)) return;
       await this.controller.handle(msg);
+      if (msg.type === 'ready') this.markReady();
     } catch (error) {
       this.post({ type: 'toast', level: 'error', text: error instanceof Error ? error.message : String(error) });
     }

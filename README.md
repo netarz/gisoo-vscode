@@ -48,7 +48,13 @@ Qwen, Kimi, GLM and more, all through one Gisoo account.
   injection) and shown to you for confirmation; nothing from a skill is ever executed by the installer.
 - **Slash commands.** `/new` `/compact` `/model` `/plan` `/review` `/explain` `/tests` `/init` `/memory`
   `/skills` `/cost` `/help`, plus your custom commands.
-- **Code actions.** "Fix with Gisoo" on errors, "Explain with Gisoo" on a selection.
+- **Gisoo where you work.** You do not have to open the chat and describe where the problem is:
+  - *Lightbulb:* "Fix with Gisoo" and "Explain with Gisoo" on every error and warning (`Ctrl+.`).
+  - *Selection menu:* right-click selected code → **Gisoo** → Explain, Refactor, Write Tests, Add Documentation.
+  - *Terminal:* select a failing output, right-click → "Ask Gisoo About This Output".
+  - *Source Control:* a button that writes the commit message from your staged changes in the style
+    of your recent commits, and "Review My Changes" for a review before you commit.
+- **Getting-started walkthrough** in English and Persian (Help → Welcome → "Get started with Gisoo").
 - **English and Persian UI**, with right-to-left text where it belongs.
 - **No telemetry.** The extension talks only to the Gisoo API you configured. The one exception is
   skill install from GitHub (`github.com` and `codeload.github.com` only), which happens only when you
@@ -89,9 +95,11 @@ only in VS Code's SecretStorage. "Sign out" removes it from the editor; revoke i
 | Gisoo: Choose model | |
 | Gisoo: Show balance | |
 | Gisoo: Add selection to chat | `Ctrl+Alt+A` / `Cmd+Alt+A` |
-| Gisoo: Explain selection | |
-| Gisoo: Generate tests for file | |
-| Gisoo: Review changes | |
+| Gisoo: Fix Problem with Gisoo / Explain Problem with Gisoo | lightbulb, `Ctrl+.` |
+| Gisoo: Explain / Refactor / Write Tests / Add Documentation | selection menu |
+| Gisoo: Ask Gisoo About This Output | terminal menu |
+| Gisoo: Write Commit Message with Gisoo | Source Control title bar |
+| Gisoo: Review My Changes with Gisoo | Source Control title bar |
 | Gisoo: Restore last checkpoint | |
 | Gisoo: Show history | |
 | Gisoo: Install skill | |
@@ -169,6 +177,10 @@ Gemini تا DeepSeek و Qwen، همه با یک حساب گیسو.
 - **کنترل با شما:** در حالت «بپرس» هر ویرایش و هر فرمان پیش از اجرا تأیید شما را می‌خواهد. در حالت «برنامه»
   گیسو فقط می‌خواند و برنامه می‌نویسد.
 - **بازگرداندن:** تغییرات هر نوبت را با یک دکمه برمی‌گردانید.
+- **گیسو همان‌جا که کار می‌کنید:** روی خطا لامپ را بزنید و «رفع با گیسو» را انتخاب کنید؛ کد را انتخاب و
+  راست‌کلیک کنید تا گیسو توضیح بدهد، بازنویسی کند، تست یا مستندات بنویسد؛ خطای ترمینال را انتخاب کنید و از
+  گیسو بپرسید؛ در Source Control هم پیام کامیت را گیسو از روی تغییرهای شما می‌نویسد و پیش از کامیت
+  تغییرها را مرور می‌کند.
 - **موجودی حساب:** موجودی حساب گیسوی شما در بالای گفت‌وگو و نوار وضعیت دیده می‌شود و هزینهٔ تقریبی هر
   نوبت هم کنارش می‌آید.
 

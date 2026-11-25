@@ -17,6 +17,7 @@ import { createMemoryTool } from './context/memory';
 import { ContextProvider } from './context/provider';
 import { activateGraph } from './graph';
 import { previewManager } from './preview/manager';
+import { registerQuickActions } from './quick/actions';
 import { SessionStore } from './sessions/store';
 import { Links, type AccountInfo, type HostToWebview } from './shared/protocol';
 import { createSkillTool } from './skills/catalog';
@@ -123,6 +124,15 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
   );
   // Graphify code graph (SPEC-phase2 §9): detection, consented install, builds, graph tools.
   const graph = activateGraph(context);
+  // Gisoo outside the panel: lightbulb, selection and terminal menus, Source Control buttons.
+  const quick = registerQuickActions({
+    client,
+    signedIn: () => auth.getAccount().signedIn,
+    host: () => current().host,
+    language: () => getSettings().language,
+    model: () => getSettings().model,
+    t,
+  });
   const agentCommand = (type: 'agent.open' | 'agent.stop' | 'agent.retry') => (arg?: unknown) => {
     const id = agentIdFromArg(arg);
     return id ? controller.handle({ type, id }) : undefined;
@@ -153,7 +163,9 @@ export function activate(context: vscode.ExtensionContext): GisooExports {
         void auth.refresh();
       }
     }),
+    ...quick.disposables,
     ...registerCommands({
+      ...quick.commands,
       'gisoo.focus': () => current().host.reveal(),
       'gisoo.newChat': async () => {
         const target = current();

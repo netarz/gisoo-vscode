@@ -566,6 +566,23 @@ export const HOST_STRINGS = {
   'host.agents.open': { en: 'Open transcript', fa: 'نمایش گفت‌وگو' },
   'host.agents.retry': { en: 'Retry', fa: 'اجرای دوباره' },
 
+  // Quick actions (lightbulb, selection menu, terminal, Source Control)
+  'host.quick.fix': { en: 'Fix with Gisoo', fa: 'رفع با گیسو' },
+  'host.quick.explainProblem': { en: 'Explain with Gisoo', fa: 'توضیح با گیسو' },
+  'host.quick.needSignIn': { en: 'Sign in to Gisoo to use this.', fa: 'برای این کار اول وارد حساب گیسو شوید.' },
+  'host.quick.signIn': { en: 'Sign in', fa: 'ورود' },
+  'host.quick.chatNotReady': { en: 'The Gisoo chat did not open in time. Open it and try again.', fa: 'گفت‌وگوی گیسو به‌موقع باز نشد. آن را باز کنید و دوباره امتحان کنید.' },
+  'host.quick.noProblem': { en: 'There is no problem under the cursor. Put the cursor on an underlined line.', fa: 'زیر نشانگر خطایی نیست. نشانگر را روی خطی بگذارید که زیرش خط کشیده شده است.' },
+  'host.quick.noTerminalSelection': { en: 'Select some text in the terminal first.', fa: 'اول بخشی از متن ترمینال را انتخاب کنید.' },
+  'host.quick.noRepository': { en: 'No Git repository is open in this window.', fa: 'در این پنجره هیچ مخزن Git باز نیست.' },
+  'host.quick.noChanges': { en: 'There are no changes to describe. New files must be staged first.', fa: 'تغییری برای نوشتن پیام نیست. فایل‌های تازه را اول Stage کنید.' },
+  'host.quick.replace': { en: 'Replace', fa: 'جایگزین شود' },
+  'host.quick.replaceConfirm': { en: 'The commit box already has a message. Replace it with one from Gisoo?', fa: 'در کادر کامیت پیامی نوشته شده است. پیام گیسو جای آن بنشیند؟' },
+  'host.quick.commitWorkingStaged': { en: 'Gisoo is writing the commit message from the staged changes', fa: 'گیسو پیام کامیت را از روی تغییرهای Stage‌شده می‌نویسد' },
+  'host.quick.commitWorkingAll': { en: 'Gisoo is writing the commit message from all changes (nothing is staged)', fa: 'گیسو پیام کامیت را از روی همهٔ تغییرها می‌نویسد (چیزی Stage نشده است)' },
+  'host.quick.commitEmpty': { en: 'The model returned no message. Try again.', fa: 'مدل پیامی برنگرداند. دوباره امتحان کنید.' },
+  'host.quick.commitClipped': { en: 'The change was large, so Gisoo read only the beginning of each file. Check the message.', fa: 'تغییر بزرگ بود و گیسو فقط ابتدای هر فایل را خواند. پیام را یک بار بخوانید.' },
+
   // Preview
   'host.preview.opened': { en: 'Preview: {0}', fa: 'پیش‌نمایش: {0}' },
 

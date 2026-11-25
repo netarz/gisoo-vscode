@@ -5,6 +5,27 @@ All notable changes to Gisoo for VS Code are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-26
+
+Gisoo where you work: on an error, on a selection, in the terminal and in Source Control.
+
+### Added
+- Lightbulb: "Fix with Gisoo" and "Explain with Gisoo" on every error and warning. The problem and
+  its lines go to the chat; the fix comes back as a diff you approve.
+- Selection menu: right-click selected code → Gisoo → Explain, Refactor, Write Tests, Add Documentation.
+- Terminal: select output, right-click → "Ask Gisoo About This Output". Colour codes are removed and
+  long output keeps its end, where the error is.
+- Source Control: "Write Commit Message with Gisoo" reads the staged changes (all changes when
+  nothing is staged), follows the style of your recent commits and writes straight into the message
+  box. Large diffs are clipped per file so one generated file cannot push the others out.
+- Source Control: "Review My Changes with Gisoo" lists bugs, security problems, missed edge cases and
+  missing tests before you commit, and changes nothing until you ask.
+- A getting-started walkthrough in English and Persian.
+
+### Changed
+- The browser sign-in names the desktop app when it runs inside Gisoo Desktop, and a host can hide
+  tools per workspace.
+
 ## [1.0.6] - 2026-11-17
 
 ### Added

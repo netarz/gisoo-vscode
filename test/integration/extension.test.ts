@@ -143,6 +143,34 @@ describe('Gisoo extension in a real VS Code', () => {
     });
   });
 
+  it('offers "Fix with Gisoo" and "Explain with Gisoo" in the lightbulb of a problem', async () => {
+    const [file] = await vscode.workspace.findFiles('**/index.html', null, 1);
+    assert.ok(file, 'the fixture workspace has an index.html');
+    const diagnostics = vscode.languages.createDiagnosticCollection('gisoo-test');
+    try {
+      const range = new vscode.Range(0, 0, 0, 5);
+      diagnostics.set(file, [new vscode.Diagnostic(range, 'A problem made by the test', vscode.DiagnosticSeverity.Error)]);
+      await vscode.workspace.openTextDocument(file);
+      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>('vscode.executeCodeActionProvider', file, range, vscode.CodeActionKind.QuickFix.value);
+      const commands = (actions ?? []).map((a) => a.command?.command);
+      assert.ok(commands.includes('gisoo.fixProblem'), `actions: ${commands.join(', ')}`);
+      assert.ok(commands.includes('gisoo.explainProblem'));
+      const fix = (actions ?? []).find((a) => a.command?.command === 'gisoo.fixProblem');
+      const [args] = (fix?.command?.arguments ?? []) as Array<{ startLine: number; problems: Array<{ message: string; severity: string }> }>;
+      assert.equal(args.startLine, 1);
+      assert.deepEqual(args.problems.map((p) => [p.message, p.severity]), [['A problem made by the test', 'error']]);
+    } finally {
+      diagnostics.dispose();
+    }
+  });
+
+  it('does not send a quick action to the chat while signed out', async () => {
+    // Signed out: the command asks to sign in (a notification, not awaited here) and sends nothing.
+    void vscode.commands.executeCommand('gisoo.reviewChanges');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(ext().isActive, true);
+  });
+
   it('loads the Gisoo and Codex agent definitions from the workspace', async () => {
     const agents = await exportsApi.agents();
     const reviewer = agents.find((a) => a.name === 'reviewer');

@@ -2,7 +2,7 @@
   "name": "gisoo-vscode",
   "displayName": "Gisoo — AI Coding Agent",
   "description": "An agentic coding assistant for VS Code, powered by Gisoo: plans, reads your code, edits with diffs you approve, runs commands, and shows your credit.",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "publisher": "gisoo",
   "license": "MIT",
   "author": {
@@ -279,6 +279,53 @@
         "title": "%command.moveToBottom%",
         "category": "Gisoo",
         "icon": "$(layout-panel)"
+      },
+      {
+        "command": "gisoo.fixProblem",
+        "title": "%command.fixProblem%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.explainProblem",
+        "title": "%command.explainProblem%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.explainSelection",
+        "title": "%command.explainSelection%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.refactorSelection",
+        "title": "%command.refactorSelection%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.writeTests",
+        "title": "%command.writeTests%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.addDocs",
+        "title": "%command.addDocs%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.askTerminal",
+        "title": "%command.askTerminal%",
+        "category": "Gisoo"
+      },
+      {
+        "command": "gisoo.reviewChanges",
+        "title": "%command.reviewChanges%",
+        "category": "Gisoo",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "gisoo.commitMessage",
+        "title": "%command.commitMessage%",
+        "category": "Gisoo",
+        "icon": "$(gisoo-logo)"
       }
     ],
     "menus": {
@@ -322,6 +369,34 @@
         {
           "command": "gisoo.moveToRight",
           "when": "!gisoo.noSecondarySidebar"
+        },
+        {
+          "command": "gisoo.explainSelection",
+          "when": "editorHasSelection && resourceScheme == file"
+        },
+        {
+          "command": "gisoo.refactorSelection",
+          "when": "editorHasSelection && resourceScheme == file"
+        },
+        {
+          "command": "gisoo.writeTests",
+          "when": "editorHasSelection && resourceScheme == file"
+        },
+        {
+          "command": "gisoo.addDocs",
+          "when": "editorHasSelection && resourceScheme == file"
+        },
+        {
+          "command": "gisoo.askTerminal",
+          "when": "terminalTextSelected"
+        },
+        {
+          "command": "gisoo.fixProblem",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "gisoo.explainProblem",
+          "when": "editorIsOpen"
         }
       ],
       "editor/context": [
@@ -329,6 +404,11 @@
           "command": "gisoo.attachSelection",
           "when": "editorHasSelection",
           "group": "gisoo@1"
+        },
+        {
+          "submenu": "gisoo.editorMenu",
+          "when": "editorHasSelection && resourceScheme == file",
+          "group": "gisoo@2"
         }
       ],
       "view/title": [
@@ -400,6 +480,43 @@
           "command": "gisoo.stop",
           "when": "activeWebviewPanelId == 'gisoo.chatTab' && gisoo.running",
           "group": "navigation@2"
+        }
+      ],
+      "gisoo.editorMenu": [
+        {
+          "command": "gisoo.explainSelection",
+          "group": "1_ask@1"
+        },
+        {
+          "command": "gisoo.refactorSelection",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "gisoo.writeTests",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "gisoo.addDocs",
+          "group": "2_edit@3"
+        }
+      ],
+      "terminal/context": [
+        {
+          "command": "gisoo.askTerminal",
+          "when": "terminalTextSelected",
+          "group": "gisoo@1"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gisoo.commitMessage",
+          "when": "scmProvider == git",
+          "group": "navigation@90"
+        },
+        {
+          "command": "gisoo.reviewChanges",
+          "when": "scmProvider == git",
+          "group": "navigation@91"
         }
       ]
     },
@@ -639,7 +756,85 @@
           "fontCharacter": "\\E901"
         }
       }
-    }
+    },
+    "submenus": [
+      {
+        "id": "gisoo.editorMenu",
+        "label": "%submenu.editor%"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "gisoo.start",
+        "title": "%walkthrough.title%",
+        "description": "%walkthrough.description%",
+        "steps": [
+          {
+            "id": "gisoo.start.signIn",
+            "title": "%walkthrough.signIn.title%",
+            "description": "%walkthrough.signIn.description%",
+            "media": {
+              "markdown": "media/walkthrough/signIn.md"
+            },
+            "completionEvents": [
+              "onContext:gisoo.signedIn"
+            ]
+          },
+          {
+            "id": "gisoo.start.chat",
+            "title": "%walkthrough.chat.title%",
+            "description": "%walkthrough.chat.description%",
+            "media": {
+              "markdown": "media/walkthrough/chat.md"
+            },
+            "completionEvents": [
+              "onCommand:gisoo.focus"
+            ]
+          },
+          {
+            "id": "gisoo.start.fix",
+            "title": "%walkthrough.fix.title%",
+            "description": "%walkthrough.fix.description%",
+            "media": {
+              "markdown": "media/walkthrough/fix.md"
+            },
+            "completionEvents": [
+              "onCommand:gisoo.fixProblem"
+            ]
+          },
+          {
+            "id": "gisoo.start.selection",
+            "title": "%walkthrough.selection.title%",
+            "description": "%walkthrough.selection.description%",
+            "media": {
+              "markdown": "media/walkthrough/selection.md"
+            },
+            "completionEvents": [
+              "onCommand:gisoo.explainSelection"
+            ]
+          },
+          {
+            "id": "gisoo.start.commit",
+            "title": "%walkthrough.commit.title%",
+            "description": "%walkthrough.commit.description%",
+            "media": {
+              "markdown": "media/walkthrough/commit.md"
+            },
+            "completionEvents": [
+              "onCommand:gisoo.commitMessage"
+            ]
+          },
+          {
+            "id": "gisoo.start.history",
+            "title": "%walkthrough.history.title%",
+            "description": "%walkthrough.history.description%",
+            "media": {
+              "markdown": "media/walkthrough/history.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",
